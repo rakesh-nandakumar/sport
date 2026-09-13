@@ -1,0 +1,617 @@
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background-attachment: fixed;  
+    background-size: cover;
+    background-position: center;
+    overflow-x: hidden;
+    background-repeat: no-repeat;
+    
+    /* Add other background properties here if needed */
+}
+
+.head{
+    position:fixed;
+    top: 0;
+    left: 0;
+    padding: 1.2rem 10%;
+    
+    width: 100%;
+    display: flex;
+    z-index: 100000;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.head::before{
+    background: rgba(0, 0, 0, .1);
+    backdrop-filter: blur(10px);
+    z-index: -1;
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+   
+
+}
+
+.head::after{
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    transition: 0.5s;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.2));
+}
+
+.head:hover::after{
+    left: 100%;
+}
+
+.indoorLogo{
+    font-size: 1.8rem;
+    font-weight: 650;
+    text-decoration: none;
+    color: #fff;
+   
+}
+
+.navbar a{
+    font-size: 1.2rem;
+    text-decoration: none;
+    color: #fff;
+    font-weight: 500;
+    margin-left: 1.7rem;
+}
+#ch{
+    display: none;
+}
+
+.icons{
+    position: absolute;
+    font-size: 2.5rem;
+    right: 5%;
+    cursor: pointer;
+    color: #fff;
+    display: none;
+
+
+}
+
+
+/*.........Hero section..........*/
+
+
+.hero{
+    background: rgba(0,0,0,0.5)url(/images/homepage-Background.jpg) center/cover no-repeat;
+    width: 100%;
+    background-blend-mode: darken;
+    height: 76vh ;
+    
+}
+
+
+.hero-content{
+   color: #fff;
+   width: 80% ;
+   padding-top: 170px;
+   font-family: 'Poppins', sans-serif;
+   padding-left: 50px;
+}
+
+
+.hero-content h1{
+    margin-bottom: 10px;
+    font-size: 60px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    font-family: 'Bebas Neue', sans-serif;
+    text-transform: uppercase;
+}
+.hero-content p{
+    margin-bottom: 40px;
+    font-size: 18px;
+    letter-spacing: 3px;
+   
+    
+}
+ 
+
+
+/*................................*/
+
+.outercontainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh; /* Adjust as needed */
+    
+}
+.container{
+    position: absolute;
+    width:1000px;
+    height:600px;
+    
+    padding:50px;
+    background-color: #f5f5f5;
+    box-shadow: 0 30px 50px #dbdbdb;
+}
+#slide{
+    width:max-content;
+    margin-top:50px;
+    
+}
+.item{
+    width:200px;
+    height:300px;
+    background-position: 50% 50%;
+    display: inline-block;
+    transition: 0.5s;
+    background-size: cover;
+    position: absolute;
+    z-index: 1;
+    top:50%;
+    transform: translate(0,-50%);
+    border-radius: 20px;
+    box-shadow:  0 30px 50px #505050;
+}
+.item:nth-child(1),
+.item:nth-child(2){
+    left:0;
+    top:0;
+    transform: translate(0,0);
+    border-radius: 0;
+    width:100%;
+    height:100%;
+    box-shadow: none;
+}
+.item:nth-child(3){
+    left:50%;
+}
+.item:nth-child(4){
+    left:calc(50% + 220px);
+}
+.item:nth-child(5){
+    left:calc(50% + 440px);
+}
+.item:nth-child(n+6){
+    left:calc(50% + 660px);
+    opacity: 0;
+}
+.item .content{
+    position: absolute;
+    top:50%;
+    left:100px;
+    width:300px;
+    text-align: left;
+    padding:0;
+    color:#eee;
+    transform: translate(0,-50%);
+    display: none;
+    font-family: system-ui;
+}
+.item:nth-child(2) .content{
+    display: block;
+    z-index: 11111;
+}
+.item .name{
+    font-size: 40px;
+    font-weight: bold;
+    opacity: 0;
+    animation:showcontent 1s ease-in-out 1 forwards
+}
+.item .des{
+    margin:20px 0;
+    opacity: 0;
+    animation:showcontent 1s ease-in-out 0.3s 1 forwards
+}
+.item button{
+    padding:10px 20px;
+    border:none;
+    opacity: 0;
+    animation:showcontent 1s ease-in-out 0.6s 1 forwards
+}
+@keyframes showcontent{
+    from{
+        opacity: 0;
+        transform: translate(0,100px);
+        filter:blur(33px);
+    }to{
+        opacity: 1;
+        transform: translate(0,0);
+        filter:blur(0);
+    }
+}
+.buttons{
+    position: absolute;
+    bottom:30px;
+    z-index: 222222;
+    text-align: center;
+    width:100%;
+}
+.buttons button{
+    width:50px;
+    height:50px;
+    border-radius: 50%;
+    border: solid #555;
+    transition: 0.5s;
+}.buttons button:hover{
+    background-color: #bac383;
+}
+
+/*................Service section.........*/
+
+.container3{
+    background-color: #fff;
+    padding-bottom: 60px;
+}
+.servicesontainer{
+    width: 90%;
+    margin: auto;
+    font-family: 'Bebas Neue', sans-serif;
+}
+.servicesontainer h1{
+    font-family: 'Bebas Neue', sans-serif;
+}
+.heading{
+    font-size: 60px;
+    text-align: center;
+    margin-top: 50px;
+}
+.services{
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
+}
+
+.card{
+    width: 350px;
+    background: #f5f5f5;
+    
+    padding: 20px;
+    margin: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.5s ease-in;
+
+}
+.card:hover{
+    transform: translateY(-20px);
+}
+.card i{
+    font-size: 38px;
+    margin-bottom: 20px;
+    color: #505050;
+
+}
+.card h2{
+    font-size: 35px;
+    margin-bottom:10px;
+    font-family: 'Bebas Neue', sans-serif;
+}
+.card p {
+    font-size: 20px;
+    color: #666;
+    line-height: 1.5;
+} 
+/*   Indoor cards   */
+
+.wrappermain{
+    font-weight: 600;
+    letter-spacing: 3px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 50px;
+    color: #000;
+    padding-top: 50px;
+
+}
+
+.wrapper{
+    margin: 20px;
+    background: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'poppins';
+    color: #666;
+
+}
+
+.section-heading {
+    text-align: center;
+    margin-top: 30px; /* Adjust top margin as needed */
+    margin-bottom: 20px; /* Adjust bottom margin as needed */
+    font-size: 24px; /* Adjust font size as needed */
+    font-weight: bold;
+    color: #333; /* Adjust color as needed */
+}
+
+.indoor-items{
+    width: 700px;
+    height:  auto;
+    background: #f5f5f5;
+    
+    padding: 15px;
+    position: relative;
+    display: flex;
+    justify-content:space-between;
+    align-items: center;
+    margin: 10px;
+    
+    border-radius: 5px;
+    box-shadow: 5px 15px 30px rgba(78, 95, 248, 0.3);
+
+
+}
+
+.indoor-items .indoor-photo{
+    flex-basis: 40%;
+}
+.indoor-photo img{
+    width: 100%; 
+    height: 100%;
+    transition: 0.3s ease;
+
+}
+.indoor-items .indoor-details{
+flex-basis: 55%;
+
+}
+
+
+.indoor-details h1{
+    margin-bottom: 10px;
+    font-size: 40px;
+  
+    font-weight: 600;
+    letter-spacing: 3px;
+    font-family: 'Bebas Neue', sans-serif;
+    text-transform: uppercase;
+   
+}
+
+.indoor-details h1 a{
+    color: #000;
+    margin-bottom: 10px;
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    font-family: 'Bebas Neue', sans-serif;
+    text-transform: uppercase;
+}
+
+.indoor-items .indoor-details p {
+    margin-bottom: 15px;
+    padding-left: 10px;
+    color: #666;
+    font-family: 'Poppins', sans-serif;
+    
+
+}
+
+.indoor-items .indoor-details h4{
+    font-family: 'Bebas Neue', sans-serif;
+    font-weight: 600;
+
+    margin-bottom: 20px;
+}
+
+.indoor-items .indoor-details a{
+    text-decoration: none;
+    padding: 5px 18px;
+}
+
+
+
+
+/*Footer*/
+
+
+footer{
+    position: absolute;
+   
+    left: 0;
+    right: 0;
+    background: black;
+    height: auto;
+    width: 100vw;
+    font-family: 'Bebas Neue', sans-serif;
+    padding-top: 40px;
+    color: #fff;
+}
+
+.footer-content{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.footer-content h3{
+    font-size: 1.8rem;
+    font-weight: 400;
+    text-transform: capitalize;
+    line-height: 3rem;
+}
+.footer-content p{
+    max-width: 500px;
+    margin: 10px auto;
+    line-height: 30px;
+    font-size: 15px;
+
+
+}
+
+.socials{
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0 3rem 0;
+    margin:  1rem 0 3rem 0 ;
+
+}
+
+.socials li{
+    margin: 0 10px;
+
+}
+.socials a{
+    text-decoration: none;
+    color: #fff;
+
+}
+
+.socials a i{
+    font-size: 1.2rem;
+    transition: color .4s ease;
+
+
+}
+.socials a:hover{
+    color: aquamarine;
+}
+.footer-bottom{
+    background: #000;
+    width: 100vw;
+    padding: 20px 0;
+    text-align:  center;
+}
+
+.footer-bottom p {
+    font-size: 15px;
+    word-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.footer-bottom span{
+    text-transform: uppercase;
+    opacity: .5;
+}
+
+/* Breakpoint */
+@media (max-width: 992px){
+.head{
+    padding: 1.2rem 5%;
+}
+
+
+.hero-content h1{
+    font-size: 50px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    font-family: 'Bebas Neue', sans-serif;
+    text-transform: uppercase;
+}
+.hero-content p{
+    margin-bottom: 30px;
+    font-size: 16px;
+    letter-spacing: 1px;
+   
+    
+}
+ 
+}
+
+@media (max-width: 768px){
+    .icons{
+        display: inline-flex;
+    }
+    #ch:checked~.icons #menu{
+        display: none;
+    }
+
+    #ch:checked~.icons #cancel{
+        display: block;
+    }
+    .icons #cancel{
+        display: none;
+    }
+    .navbar{
+        position: absolute;
+        top: 100%;
+        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .1);
+        left: 0;
+        width: 100%;
+        height: 0;
+        overflow: hidden;
+        transition: 0.3s ease;
+        
+        background:rgba(0, 0, 0, .1);
+        backdrop-filter: blur(10px);
+    }
+    .navbar a{
+        display: block;
+        font-size: 1.3rem;
+        margin: 1.5rem 0 ;
+        transform: translateY(-50px);
+        text-align: center;
+        opacity: 0;
+        transition: 0.3s ease;
+
+
+    }
+
+    #ch:checked~.navbar{
+        
+        height: 12rem;
+    }
+
+    #ch:checked~.navbar a{
+        opacity: 1;
+        transform: translateY(0px);
+        transition-delay: calc(.15s * var(--i));
+    }
+
+
+    .img-slider {
+        height: 70vw; /* Adjust height for smaller screens */
+    }
+
+    .img-container {
+        width: 50%; /* Adjust width for smaller screens to show two images at a time */
+    }
+
+    .services{
+        flex-direction: column;
+        align-items: center;
+    }
+
+  
+        .wrapper{
+            flex-direction: column;
+        }
+        .indoor-items{
+            width:400px;
+    
+        }
+    
+.hero-content h1{
+    font-size: 30px;
+    font-weight: 300;
+    letter-spacing: 1px;
+    font-family: 'Bebas Neue', sans-serif;
+    text-transform: uppercase;
+}
+.hero-content p{
+    margin-bottom: 20px;
+    font-size: 15px;
+    letter-spacing: 1px;
+   
+    
+}
+ 
+
+  
+}

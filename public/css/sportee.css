@@ -1,0 +1,218 @@
+/* Sportee additions layered on top of styles.css */
+
+.head::before {
+    background: rgba(0, 0, 0, .55);
+}
+
+.navbar {
+    display: flex;
+    align-items: center;
+}
+
+.navbar a,
+.navbar .nav-logout {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #fff;
+    text-decoration: none;
+    margin-left: 1.5rem;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+}
+
+.navbar .nav-cta {
+    padding: .45rem 1rem;
+    border-radius: 999px;
+    background: #ef4444;
+    font-weight: 600;
+}
+
+.navbar .nav-cta:hover {
+    background: #b91c1c;
+}
+
+.nav-badge {
+    position: absolute;
+    top: -.55rem;
+    right: -.9rem;
+    background: #ef4444;
+    color: #fff;
+    font-size: .65rem;
+    font-weight: 700;
+    padding: .1rem .4rem;
+    border-radius: 999px;
+    line-height: 1.2;
+}
+
+.site-footer {
+    position: static;
+    width: 100%;
+    background: #000;
+    color: #fff;
+    padding-top: 40px;
+    font-family: 'Bebas Neue', sans-serif;
+}
+
+.site-footer .footer-content p {
+    font-family: 'Poppins', sans-serif;
+}
+
+.site-footer .footer-bottom {
+    width: 100%;
+}
+
+/* Display headings */
+.display {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+/* Buttons */
+.btn-brand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    background: #ef4444;
+    color: #fff;
+    font-weight: 600;
+    padding: .75rem 1.5rem;
+    border-radius: .75rem;
+    transition: background .2s, transform .2s;
+    border: 0;
+    cursor: pointer;
+}
+
+.btn-brand:hover { background: #b91c1c; }
+.btn-brand:disabled { background: #d1d5db; cursor: not-allowed; }
+
+.btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    background: #fff;
+    color: #111827;
+    font-weight: 600;
+    padding: .75rem 1.5rem;
+    border-radius: .75rem;
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+.btn-ghost:hover { background: #f3f4f6; }
+
+/* Selectable chips (dates, times, options) */
+.chip {
+    border: 1px solid #e5e7eb;
+    border-radius: .75rem;
+    background: #fff;
+    cursor: pointer;
+    transition: all .15s;
+    user-select: none;
+}
+
+.chip:hover { border-color: #9ca3af; }
+
+.chip.is-selected {
+    border-color: #ef4444;
+    background: #fef2f2;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, .25);
+}
+
+.chip.is-disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    text-decoration: line-through;
+    background: #f9fafb;
+}
+
+/* Horizontal scroll rows on mobile */
+.scroll-row {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+    padding-bottom: .5rem;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.scroll-row > * { scroll-snap-align: start; flex: 0 0 auto; }
+.scroll-row::-webkit-scrollbar { height: 6px; }
+.scroll-row::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 999px; }
+
+/* Sticky mobile summary bar on the booking builder */
+.sticky-summary {
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    box-shadow: 0 -10px 30px rgba(0,0,0,.08);
+}
+
+/* Payment modal cards */
+.pay-option {
+    border: 2px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 1rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    cursor: pointer;
+    transition: all .15s;
+    background: #fff;
+}
+
+.pay-option:hover { border-color: #9ca3af; }
+.pay-option.is-selected { border-color: #ef4444; background: #fef2f2; }
+.pay-option.is-disabled { opacity: .55; cursor: not-allowed; background: #f9fafb; }
+
+.pay-option .pay-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: .75rem;
+    display: grid;
+    place-items: center;
+    background: #f3f4f6;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+/* Mobile nav: let it grow to fit all links */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        height: auto;
+        max-height: 0;
+        padding: 0;
+        background: rgba(0, 0, 0, .85);
+    }
+
+    #ch:checked ~ .navbar {
+        height: auto;
+        max-height: 80vh;
+        padding: .5rem 0 1rem;
+        overflow-y: auto;
+    }
+
+    .navbar a,
+    .navbar .nav-logout,
+    .navbar form {
+        margin: .6rem 0;
+        display: block;
+        text-align: center;
+        width: 100%;
+    }
+
+    .navbar .nav-cta {
+        width: auto;
+        display: inline-block;
+    }
+
+    .navbar form { transform: none; opacity: 1; }
+}
