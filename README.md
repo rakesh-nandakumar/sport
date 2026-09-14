@@ -2,7 +2,7 @@
 
 EntryPoint.lk is a multi-vendor marketplace for booking sports and leisure activities in Sri Lanka. Venue owners (vendors) list anything bookable by the block — futsal courts, cricket nets, badminton halls, PS5 stations, paintball sessions, swimming lanes, bowling lanes, studio hire — with their own block size, minimum duration, gaps, seat/unit types and peak-hour pricing. Customers pick a venue, build a plan, see the price instantly, and choose how to pay.
 
-Built on **Laravel 13 · PHP 8.5 · Livewire 4**, with Tailwind (public site) and SB Admin/Bootstrap (dashboards).
+Built on **Laravel 13 · PHP 8.5 · Livewire 4**, with Tailwind (public site) and [Filament 5](https://filamentphp.com) (the admin panel *and* the vendor panel — see §7–8).
 
 ---
 
@@ -57,8 +57,9 @@ The original app was a Laravel 10 "indoor futsal" booking site with football-spe
 | `userController` mixed auth  | `AuthController`, role-aware redirects, vendor self-registration |
 | FullCalendar drag booking    | Livewire **BookingBuilder** wizard with live pricing             |
 | Kernel.php middleware        | `bootstrap/app.php` (`role:` alias, guest/user redirects)        |
+| Blade admin controllers + SB Admin vendor dashboard | Filament 5 **admin** and **vendor** panels (own resources, widgets, actions) |
 
-The look and feel was kept: Poppins/Bebas Neue type, dark glass header, red brand accent, SB Admin dashboards.
+The look and feel of the public site was kept: Poppins/Bebas Neue type, dark glass header, red brand accent. Both dashboards (admin and vendor) were later rebuilt on Filament 5, replacing the original SB Admin/Bootstrap screens — see §7–8.
 
 ---
 
@@ -160,25 +161,30 @@ To switch a gateway on later: add it to `PaymentMethod::isIntegrated()`, impleme
 
 ---
 
-## 7. Vendor panel (`/vendor`)
+## 7. Vendor panel (`/vendor`, Filament)
 
-- **Account status banner** — pending / active / suspended / rejected with the admin's note. Pending vendors can set everything up; nothing is public until an admin activates them.
-- **Dashboard** — today/this week/revenue/transfers-to-verify/unconfirmed holds, a **"transfers waiting for your verification"** list with minutes left, FullCalendar week view fed by `/vendor/events`, upcoming bookings, venue shortcuts.
-- **My venues** — create/edit venue (pre-filled from the vendor application): basics, district, postal code, **map pin** (use-my-location button), cover photo, 7-day opening hours, amenities (list managed in Site settings), bank details. Venues go live as soon as the vendor is active unless *venues.require_approval* is switched on.
-- **Services** (per venue) — activity type (defaults the block size and shows the games list when the type requires a game), booking rules, options & pricing repeater (mark one default; "units" = capacity), peak-hour rate repeater, photo, active toggle.
-- **Bookings** — filter by venue/status/date/awaiting-verification; booking detail with actions: **Confirm & lock**, **Mark as paid** (verifies transfer or records cash), **Completed / No-show** (after end time), **Cancel** with reason. Slip images open from the payment list.
+Built with [Filament 5](https://filamentphp.com) — its own panel (`App\Providers\Filament\VendorPanelProvider`), separate from the admin panel but sharing the same `/login`. Vendors (and Super Administrators, who can also **sign in as a vendor** from Admin → Vendors) are routed here automatically; `App\Http\Controllers\Vendor\*` and the old SB Admin dashboard views no longer exist.
 
-## 8. Admin panel (`/admin`)
+- **Account status banner** — pending / active / suspended / rejected with the admin's note, plus a nudge to create a first venue. Pending vendors can set everything up; nothing is public until an admin activates them. A "signed in as this vendor" bar with a **Back to admin** button appears when a staff member is impersonating.
+- **Dashboard** — stat cards (today/this week/revenue/transfers-to-verify/unconfirmed holds), a **FullCalendar** week view (events are fetched straight from the widget over Livewire, no separate JSON route), a **"Bank transfers waiting for your verification"** table with minutes left, an upcoming-bookings table, and a venue shortcut list.
+- **Venues** — a Filament resource, scoped to the signed-in vendor's own venues: basics, district, postal code, map pin (lat/lng), cover photo, 7-day opening hours, amenities (list managed in Site settings), bank details. A **Services** tab (relation manager) on the venue's edit page manages what's bookable at that venue. Venues go live as soon as the vendor is active unless *venues.require_approval* is switched on.
+- **Services** (per venue, from the Services tab) — activity type (defaults the block size and shows the games list when the type requires a game), booking rules, an options & pricing repeater ("units" = capacity, one option flagged default), a peak-hour rate repeater, photo, active toggle.
+- **Bookings** — a Filament resource, scoped to the vendor's own venues, with venue/status/date/awaiting-verification filters; row and detail-page actions: **Confirm & lock**, **Mark as paid** (verifies transfer or records cash), **Completed / No-show** (after end time), **Cancel** with reason. Slip images open from the payment list.
+- **Scan check-in** — a custom Filament page: a camera QR scanner (`html5-qrcode`) plus manual reference/token entry, both resolving through the same vendor-scoped lookup as the booking's QR code (`Booking::checkinUrl()`).
 
-- Platform stats (incl. vendor applications awaiting review), 30-day booking chart, bookings-by-activity doughnut, latest bookings.
-- **Vendors** — every business that applied: filter by status, search, open the application (business type, BR number, owner NIC, contacts, address + map, socials, description, activities, venues) and open the **private documents** (BR certificate, NIC copy). Super admins **activate / suspend / reject** with a note that the vendor sees.
-- **Venues** — approve/hide, feature/unfeature, edit (via vendor form), delete; shows whether the owner is an active vendor.
-- **Users** — search, filter by role, change role, delete.
-- **Activity types** — name, unit label, icon, colour, **tile photo** (upload or path), default block, "customers pick a game", featured, sort order.
+## 8. Admin panel (`/admin`, Filament)
+
+Built with [Filament 5](https://filamentphp.com). Sign in through the normal `/login` page — staff (Super Administrator, Moderator, Marketing Manager) are taken to the panel; everyone else is blocked.
+
+- **Dashboard** — stat cards (venues, vendors awaiting review, customers, bookings, paid revenue), a 30-day bookings chart and the latest bookings.
+- **Vendors** — every business that applied: filter by status, search, open the application (business type, BR number, owner NIC, contacts, address + map, socials, description, activities, venues) and open the **private documents** (BR certificate, NIC copy). Super admins **activate / suspend / reject** with a note that the vendor sees, and can **sign in as the vendor** to help them.
+- **Venues** — approve/hide, feature/unfeature, view details, delete; shows whether the owner is an active vendor.
+- **Users** — search, filter by role, change role, delete (you cannot delete your own account).
+- **Activity types** — name, unit label, a searchable **Font Awesome icon picker** (browse/search ~1,400 icons instead of typing a class name), colour, **tile photo** (drag & drop, clipboard paste or path), default block, "customers pick a game", featured, sort order.
 - **Games** — titles per gaming activity (platform, max players). Vendors attach them to services.
 - **Site settings** (super admin) — enabled payment methods, bank-transfer verification window, vendor activation / venue approval switches, booking window, "near you" radius, amenities list, support contact.
 
-Moderators and Marketing Managers can view the admin panel; only Super Administrators can change vendor status and site settings.
+Moderators and Marketing Managers can manage venues, the catalogue and users; only Super Administrators can change vendor status and site settings.
 
 ---
 
@@ -187,18 +193,18 @@ Moderators and Marketing Managers can view the admin panel; only Super Administr
 - **Database** — switch to MySQL by setting `DB_CONNECTION=mysql` and the `DB_*` vars in `.env`, then `php artisan migrate --seed`. (The commented MySQL lines in `.env.example` are ready.)
 - **Sessions/cache/queue** — set to `file`/`file`/`sync` for zero-config local use. For production use `database` or `redis` and run a queue worker if you move notifications to queues.
 - **Assets** — the public site loads Tailwind via the Play CDN to preserve the original theme exactly. For production, move to the Vite build already scaffolded (`resources/css/app.css`, `@vite` in `layouts/app.blade.php`, `npm run build`) and audit Tailwind v4 class changes.
-- **Uploads** — venue/service photos and bank slips go to `storage/app/public` (`php artisan storage:link`). Use S3 by pointing `FILESYSTEM_DISK` at the `s3` disk.
+- **Uploads** — venue/service photos and bank slips go to `storage/app/public` (`php artisan storage:link`). Every upload field supports drag & drop, clipboard paste (Ctrl+V) and click-to-browse (`resources/views/components/file-drop.blade.php`). Use S3 by pointing `FILESYSTEM_DISK` at the `s3` disk.
 - **Scheduler** — `bookings:expire-holds` must run every minute (`* * * * * php artisan schedule:run` in cron, or `php artisan schedule:work`). Without it, expired holds still free their slot (queries ignore them) but stay "pending" in lists until the next reservation/listing triggers the sweep.
 - **Approval flow** — vendors must be activated from Admin → Vendors (switch: `vendors.require_activation`); per-venue approval is optional (`venues.require_approval`). Both live in Site settings.
 - **Vendor documents** — stored on the `local` (private) disk under `vendor-documents/`; served only to staff via `admin.vendors.document`.
 - **Timezone** — `APP_TIMEZONE` defaults to `Asia/Colombo`; all opening hours, lead times and hold timers use it.
-- **Roles** — `role:` middleware accepts a list (`role:Vendor,SuperAdministrator`). Enum values are stable integers so existing user rows keep working.
+- **Roles** — the `role:` middleware (accepts a list, e.g. `role:SuperAdministrator,Moderator,MarketingManager`) still guards plain routes like the admin vendor-document download; the two Filament panels gate access themselves via `User::canAccessPanel()` (staff → `admin`, vendors and super admins → `vendor`). Enum values are stable integers so existing user rows keep working.
 
 ---
 
 ## 10. UI/UX decisions
 
-- **One consistent brand** across pages: the EntryPoint.lk wordmark (white on the dark header/footer/dashboard topbar) plus Bebas Neue display headings, Poppins body, red (#ef4444) primary, soft grey cards. Dashboards stay on SB Admin so vendors get a familiar, dense, table-first workspace.
+- **One consistent brand** across pages: the EntryPoint.lk wordmark (white on the dark public header/footer, and on both Filament panels' topbar) plus Bebas Neue display headings, Poppins body, red (#ef4444) primary. Admin and vendor now share the same Filament design system, so a Super Administrator "signing in as a vendor" sees a workspace that already feels familiar.
 - **Booking builder as a numbered wizard** with large tappable chips (44px+ targets), disabled states that explain *why* a time is unavailable, capacity hints ("8 left"), and a **sticky bottom summary on mobile** so the price and CTA are always visible.
 - **Price transparency** — every screen shows the line items (blocks × option, peak surcharges) before any commitment; nothing is charged until a method is chosen.
 - **Payment modal** (bottom sheet on mobile, centred card on desktop) states availability and priority for each method, and previews bank details inline so users aren't surprised later.

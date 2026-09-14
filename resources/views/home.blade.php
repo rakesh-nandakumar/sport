@@ -5,7 +5,7 @@
 {{-- Hero --}}
 <section class="hero !h-auto min-h-[640px] flex items-center">
     <div class="hero-content !w-full !p-0"><div class="mx-auto max-w-6xl px-4 pt-32 pb-16">
-        <p class="mb-3 text-sm font-semibold uppercase tracking-[.3em] text-red-400">Sri Lanka's sports & activity marketplace</p>
+        <p class="mb-3 text-sm font-semibold uppercase tracking-[.3em] text-red-400">Sri Lanka's Biggest sports & activity marketplace</p>
         <h1 class="!mb-4">Book any sport.<br class="hidden sm:block"> Any time. Any place.</h1>
         <p class="!mb-8 max-w-2xl !tracking-normal !text-base md:!text-lg text-gray-200">Futsal courts, cricket nets, PlayStation lounges, paintball arenas, badminton halls and more. Pick a venue, pick your slot, pay how you like.</p>
 
@@ -46,7 +46,7 @@
         @foreach([
             ['fa-solid fa-map-location-dot', 'Pick a venue', 'Filter by activity and city. Every venue shows real opening hours and live availability.'],
             ['fa-solid fa-sliders', 'Build your plan', 'Choose the court, station or seat type, the game if it applies, your start time and how long you play.'],
-            ['fa-solid fa-calculator', 'See the price instantly', 'Rates are calculated automatically from the vendor\'s block size, with peak-hour pricing shown line by line.'],
+            ['fa-solid fa-calculator', 'See the price instantly', 'Rates are calculated automatically from the venue\'s block size, with peak-hour pricing shown line by line.'],
             ['fa-solid fa-hand-holding-dollar', 'Pay your way', 'Pay at the venue, transfer to their bank, or (soon) pay online to lock the slot instantly.'],
         ] as [$icon, $title, $text])
             <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">

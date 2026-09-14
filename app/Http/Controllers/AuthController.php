@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Role;
 use App\Enums\VendorStatus;
+use App\Filament\Resources\VendorProfiles\VendorProfileResource;
 use App\Models\ActivityType;
 use App\Models\User;
 use App\Notifications\BookingNotification;
@@ -149,13 +150,13 @@ class AuthController extends Controller
                 "New vendor application: {$data['business_name']} ({$data['city']}, {$data['district']}) by {$user->name}. Review and activate it from the admin panel.",
                 'system',
                 null,
-                route('admin.vendors.show', $user->vendorProfile),
+                VendorProfileResource::getUrl('view', ['record' => $user->vendorProfile]),
             ));
         }
 
         auth()->login($user);
 
-        return redirect()->route('vendor.dashboard')->with('message',
+        return redirect()->route('filament.vendor.pages.dashboard')->with('message',
             $user->vendorStatus() === VendorStatus::Active
                 ? 'Your vendor account is ready. Add your first venue to start taking bookings.'
                 : 'Thanks! Your application is under review. You can set up venues and services now — they go live once our team activates your account.');

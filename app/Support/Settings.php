@@ -22,7 +22,7 @@ class Settings
             // Payment methods a customer may pick at checkout. Gateways that are not integrated
             // (see PaymentMethod::isIntegrated) are ignored here even if listed.
             'payments.enabled' => [PaymentMethod::PayAtVenue->value, PaymentMethod::BankTransfer->value],
-            // Minutes the venue has to verify a bank transfer before the slot is released again.
+            // Minutes the vendor has to verify a bank transfer before the slot is released again.
             'payments.bank_transfer_hold_minutes' => 20,
             // Vendors must be activated by an admin before their venues are shown to customers.
             'vendors.require_activation' => true,

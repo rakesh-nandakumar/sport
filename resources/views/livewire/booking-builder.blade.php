@@ -222,7 +222,7 @@
                                         <span class="flex flex-wrap items-center gap-2">
                                             <span class="font-semibold text-gray-900">{{ $m->label() }}</span>
                                             <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $on ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600' }}">{{ $m->availabilityLabel() }}</span>
-                                            <span class="ml-auto text-[11px] text-gray-400">priority {{ $m->priority() }}/3</span>
+                                            <span class="ml-auto text-[11px] text-gray-400">{{ $m->priority() === 1 ? 'Slot may be replaced by a paid booking' : 'Confirms your slot' }}</span>
                                         </span>
                                         <span class="mt-1 block text-xs text-gray-500">{{ $m->description() }}</span>
                                     </span>
@@ -248,13 +248,13 @@
                                     <input wire:model="bankReference" class="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2" placeholder="e.g. TXN123456">
                                     @error('bankReference')<span class="text-xs text-rose-600">{{ $message }}</span>@enderror
                                 </label>
-                                <label class="block">
+                                <div class="block">
                                     <span class="font-medium">Transfer slip <span class="font-normal text-blue-700">(jpg/png/pdf, optional now)</span></span>
-                                    <input type="file" wire:model="proof" accept=".jpg,.jpeg,.png,.pdf" class="mt-1 block w-full text-sm">
+                                    <x-file-drop wire:model="proof" accept=".jpg,.jpeg,.png,.pdf" :max-size="5" hint="JPG, PNG or PDF · up to 5 MB" />
                                     <span wire:loading wire:target="proof" class="text-xs text-blue-700"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Uploading…</span>
                                     @if($proof && ! $errors->has('proof'))<span class="text-xs text-emerald-700"><i class="fa-solid fa-check mr-1"></i>{{ $proof->getClientOriginalName() }}</span>@endif
                                     @error('proof')<span class="text-xs text-rose-600">{{ $message }}</span>@enderror
-                                </label>
+                                </div>
                             </div>
                         </div>
                     @elseif($paymentMethod === \App\Enums\PaymentMethod::PayAtVenue->value)

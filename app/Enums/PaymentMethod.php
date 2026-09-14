@@ -18,7 +18,7 @@ enum PaymentMethod: string
             self::BankTransfer => 'Bank Transfer',
             self::Card => 'Debit / Credit Card',
             self::Koko => 'Koko',
-            self::MintPay => 'Mint Pay',
+            self::MintPay => 'Mintpay',
             self::PayEasy => 'PayEasy',
         };
     }
@@ -26,8 +26,8 @@ enum PaymentMethod: string
     public function description(): string
     {
         return match ($this) {
-            self::PayAtVenue => 'Reserve now and pay in cash when you arrive. Lowest priority: a paid booking for the same slot can replace it.',
-            self::BankTransfer => 'Transfer the total to the venue\'s bank account and upload your slip. Locked in once the vendor verifies it.',
+            self::PayAtVenue => 'Reserve now and pay in cash when you arrive. A paid booking for the same slot can replace it.',
+            self::BankTransfer => 'Transfer the total to the venue\'s bank account and upload your slip. Locked in once the venue verifies it.',
             self::Card => 'Pay instantly with Visa or Mastercard via secure gateway. Confirms your slot immediately.',
             self::Koko => 'Split your payment into three interest-free instalments with Koko.',
             self::MintPay => 'Buy now, pay later in instalments with Mint Pay.',

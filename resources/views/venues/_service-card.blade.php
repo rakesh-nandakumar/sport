@@ -1,4 +1,4 @@
-{{-- One bookable service on the venue page: every rate and today's start-time grid, straight from the listing. --}}
+{{-- One bookable service on the venue page: every rate and today's start-time grid, straight from the service. --}}
 @php($slots = $todaySlots[$service->id] ?? collect())
 @php($openToday = $service->windowFor(today()->dayOfWeek))
 <div class="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">

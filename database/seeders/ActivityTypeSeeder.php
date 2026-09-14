@@ -12,7 +12,7 @@ class ActivityTypeSeeder extends Seeder
     {
         $types = [
             ['name' => 'Futsal', 'image' => '/images/activities/futsal.jpg', 'icon' => 'fa-solid fa-futbol', 'color' => '#16a34a', 'unit_label' => 'Court', 'default_slot_minutes' => 60, 'is_featured' => true, 'description' => '5-a-side indoor and turf courts.'],
-            ['name' => 'Football', 'image' => '/images/activities/football.jpg', 'icon' => 'fa-regular fa-futbol', 'color' => '#15803d', 'unit_label' => 'Pitch', 'default_slot_minutes' => 60, 'is_featured' => true, 'description' => '7-a-side and 11-a-side grounds.'],
+            ['name' => 'Football', 'image' => '/images/activities/football.jpg', 'icon' => 'fa-regular fa-futbol', 'color' => '#15803d', 'unit_label' => 'Pitch', 'default_slot_minutes' => 60, 'is_featured' => true, 'description' => '7-a-side and 11-a-side pitches.'],
             ['name' => 'Cricket', 'image' => '/images/activities/cricket.jpg', 'icon' => 'fa-solid fa-baseball-bat-ball', 'color' => '#2563eb', 'unit_label' => 'Net', 'default_slot_minutes' => 30, 'is_featured' => true, 'description' => 'Practice nets with or without bowling machines.'],
             ['name' => 'Badminton', 'image' => '/images/activities/badminton.jpg', 'icon' => 'fa-solid fa-table-tennis-paddle-ball', 'color' => '#f59e0b', 'unit_label' => 'Court', 'default_slot_minutes' => 60, 'is_featured' => true, 'description' => 'Indoor wooden and synthetic courts.'],
             ['name' => 'Basketball', 'image' => '/images/activities/basketball.jpg', 'icon' => 'fa-solid fa-basketball', 'color' => '#ea580c', 'unit_label' => 'Court', 'default_slot_minutes' => 60, 'description' => 'Full and half courts.'],

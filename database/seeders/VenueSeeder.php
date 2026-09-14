@@ -23,20 +23,22 @@ class VenueSeeder extends Seeder
         $xbox = Game::where('platform', 'Xbox Series X')->pluck('id', 'name');
 
         $vendors = [
-            'vendor@entrypoint.lk' => ['Dinesh Perera', '0771234567'],
-            'ciel@entrypoint.lk' => ['Ruwan Fernando', '0312234567'],
-            'misfits@entrypoint.lk' => ['Shanaka Silva', '0712345678'],
-            'sportsworld@entrypoint.lk' => ['Nadeesha Jayawardena', '0112825555'],
-            'unisports@entrypoint.lk' => ['Kasun Wickramasinghe', '0112650301'],
-            'levelup@entrypoint.lk' => ['Tharindu Bandara', '0812223344'],
-            'strikezone@entrypoint.lk' => ['Ayesha Rahman', '0112575757'],
-            'galle@entrypoint.lk' => ['Roshan de Silva', '0912245678'],
-            'aqua@entrypoint.lk' => ['Malith Gunasekara', '0112930303'],
-            'jaffna@entrypoint.lk' => ['Thavaraj Kumar', '0212223355'],
+            'vendor@entrypoint.lk' => ['Dinesh Perera', '0771234567', 'Havelock Sports Holdings (Pvt) Ltd'],
+            'ciel@entrypoint.lk' => ['Ruwan Fernando', '0312234567', 'Ciel Sports (Pvt) Ltd'],
+            'misfits@entrypoint.lk' => ['Shanaka Silva', '0712345678', 'Misfits Entertainment (Pvt) Ltd'],
+            'sportsworld@entrypoint.lk' => ['Nadeesha Jayawardena', '0112825555', 'Sports World Lanka (Pvt) Ltd'],
+            'unisports@entrypoint.lk' => ['Kasun Wickramasinghe', '0112650301', 'Uni Sports Academy (Pvt) Ltd'],
+            'levelup@entrypoint.lk' => ['Tharindu Bandara', '0812223344', 'Level Up Kandy (Pvt) Ltd'],
+            'strikezone@entrypoint.lk' => ['Ayesha Rahman', '0112575757', 'Strike Zone Entertainment (Pvt) Ltd'],
+            'galle@entrypoint.lk' => ['Roshan de Silva', '0912245678', 'Southern Sports Club'],
+            'aqua@entrypoint.lk' => ['Malith Gunasekara', '0112930303', 'Aqua Fitness Studios (Pvt) Ltd'],
+            'jaffna@entrypoint.lk' => ['Thavaraj Kumar', '0212223355', 'Jaffna Sports Club'],
         ];
         $owners = [];
-        foreach ($vendors as $email => [$name, $phone]) {
+        $businessNames = [];
+        foreach ($vendors as $email => [$name, $phone, $business]) {
             $owners[$email] = User::updateOrCreate(['email' => $email], ['name' => $name, 'phone' => $phone, 'password' => 'password', 'role_id' => Role::Vendor]);
+            $businessNames[$email] = $business;
         }
 
         $standardHours = fn ($open = '07:00', $close = '23:00') => array_fill(0, 7, [$open, $close]);
@@ -274,9 +276,10 @@ class VenueSeeder extends Seeder
         foreach ($venues as $data) {
             $owner = $owners[$data['owner']];
             if (! $owner->vendorProfile()->exists()) {
+                $businessName = $businessNames[$data['owner']];
                 $owner->vendorProfile()->create([
-                    'business_name' => $data['name'],
-                    'business_type' => str_contains($data['name'], 'Club') ? 'club' : 'private_limited',
+                    'business_name' => $businessName,
+                    'business_type' => str_contains($businessName, 'Club') ? 'club' : 'private_limited',
                     'registration_number' => 'PV'.rand(100000, 999999),
                     'owner_nic' => rand(199000000000, 199999999999),
                     'contact_person' => $owner->name,

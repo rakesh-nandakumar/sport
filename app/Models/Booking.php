@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\BookingStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Services\QrCodeService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,7 +23,7 @@ class Booking extends Model
         'starts_at', 'ends_at', 'slots', 'players', 'unit_price', 'subtotal', 'discount', 'total',
         'price_breakdown', 'currency', 'status', 'payment_method', 'payment_status', 'priority',
         'customer_name', 'customer_phone', 'notes', 'vendor_confirmed_at', 'hold_expires_at', 'cancelled_at',
-        'cancel_reason', 'bumped_by_booking_id',
+        'cancel_reason', 'bumped_by_booking_id', 'checked_in_at', 'checked_in_by',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class Booking extends Model
             'vendor_confirmed_at' => 'datetime',
             'hold_expires_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'checked_in_at' => 'datetime',
             'price_breakdown' => 'array',
             'unit_price' => 'decimal:2',
             'subtotal' => 'decimal:2',
@@ -48,6 +50,7 @@ class Booking extends Model
     {
         static::creating(function (self $booking) {
             $booking->reference = $booking->reference ?: self::generateReference();
+            $booking->qr_token = $booking->qr_token ?: self::generateQrToken();
         });
     }
 
@@ -58,6 +61,15 @@ class Booking extends Model
         } while (static::where('reference', $ref)->exists());
 
         return $ref;
+    }
+
+    public static function generateQrToken(): string
+    {
+        do {
+            $token = Str::random(48);
+        } while (static::where('qr_token', $token)->exists());
+
+        return $token;
     }
 
     public function getRouteKeyName(): string
@@ -98,6 +110,11 @@ class Booking extends Model
     public function bumpedBy(): BelongsTo
     {
         return $this->belongsTo(self::class, 'bumped_by_booking_id');
+    }
+
+    public function checkedInBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'checked_in_by');
     }
 
     public function scopeActive(Builder $query): Builder
@@ -156,6 +173,26 @@ class Booking extends Model
     public function isLocked(): bool
     {
         return $this->priority >= 3;
+    }
+
+    public function isCheckedIn(): bool
+    {
+        return $this->checked_in_at !== null;
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        return $this->venue->user_id === $user->id || $user->isAdmin();
+    }
+
+    public function checkinUrl(): string
+    {
+        return route('filament.vendor.pages.check-in', ['code' => $this->qr_token]);
+    }
+
+    public function qrCodeSvg(): string
+    {
+        return app(QrCodeService::class)->svg($this->checkinUrl());
     }
 
     /** True while an unverified bank transfer is still counting down. */

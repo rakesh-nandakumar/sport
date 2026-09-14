@@ -37,9 +37,9 @@
         {{-- 2. Business --}}
         <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
             <h2 class="flex items-center gap-2 text-lg font-semibold text-gray-900"><span class="grid h-7 w-7 place-items-center rounded-full bg-gray-900 text-xs text-white">2</span>The business</h2>
-            <p class="text-sm text-gray-500">Legal details we use to verify you. Customers only see the trading name.</p>
+            <p class="text-sm text-gray-500">Legal details we use to verify you. Customers only see the venues you publish.</p>
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                <label class="block text-sm sm:col-span-2"><span class="font-medium text-gray-700">Business / trading name</span><input name="business_name" value="{{ old('business_name') }}" required class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5" placeholder="e.g. CR7 Futsal Arena (Pvt) Ltd">@error('business_name')<span class="text-xs text-rose-600">{{ $message }}</span>@enderror</label>
+                <label class="block text-sm sm:col-span-2"><span class="font-medium text-gray-700">Business / trading name</span><input name="business_name" value="{{ old('business_name') }}" required class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5" placeholder="e.g. Havelock Sports (Pvt) Ltd">@error('business_name')<span class="text-xs text-rose-600">{{ $message }}</span>@enderror</label>
                 <label class="block text-sm"><span class="font-medium text-gray-700">Business type</span>
                     <select name="business_type" x-model="type" required class="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5">
                         @foreach($businessTypes as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
@@ -95,7 +95,7 @@
                         <input name="longitude" x-model="lng" placeholder="Longitude" class="w-full rounded-xl border border-gray-200 px-3 py-2.5">
                         <button type="button" class="btn-ghost !px-3 whitespace-nowrap" :disabled="locating" @click="locating = true; navigator.geolocation.getCurrentPosition(p => { lat = p.coords.latitude.toFixed(6); lng = p.coords.longitude.toFixed(6); locating = false }, () => locating = false)"><i class="fa-solid" :class="locating ? 'fa-spinner fa-spin' : 'fa-location-crosshairs'"></i></button>
                     </div>
-                    <span class="text-xs text-gray-400">Tap the icon while at the venue, or paste coordinates from Google Maps.</span>
+                    <span class="text-xs text-gray-400">Tap the icon while at the business address, or paste coordinates from Google Maps.</span>
                     @error('latitude')<span class="block text-xs text-rose-600">{{ $message }}</span>@enderror
                 </div>
             </div>
@@ -106,8 +106,16 @@
             <h2 class="flex items-center gap-2 text-lg font-semibold text-gray-900"><span class="grid h-7 w-7 place-items-center rounded-full bg-gray-900 text-xs text-white">4</span>Verification documents</h2>
             <p class="text-sm text-gray-500">Seen only by our review team. JPG, PNG or PDF, up to 8 MB each.</p>
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                <label class="block text-sm"><span class="font-medium text-gray-700">Business registration certificate <span class="text-gray-400" x-text="['private_limited','partnership'].includes(type) ? '(required)' : '(if you have one)'"></span></span><input type="file" name="br_document" accept=".jpg,.jpeg,.png,.pdf" class="mt-1 block w-full text-sm">@error('br_document')<span class="text-xs text-rose-600">{{ $message }}</span>@enderror</label>
-                <label class="block text-sm"><span class="font-medium text-gray-700">Owner NIC copy (front)</span><input type="file" name="nic_document" accept=".jpg,.jpeg,.png,.pdf" required class="mt-1 block w-full text-sm">@error('nic_document')<span class="text-xs text-rose-600">{{ $message }}</span>@enderror</label>
+                <div>
+                    <span class="font-medium text-gray-700">Business registration certificate <span class="text-gray-400" x-text="['private_limited','partnership'].includes(type) ? '(required)' : '(if you have one)'"></span></span>
+                    <x-file-drop name="br_document" accept=".jpg,.jpeg,.png,.pdf" :max-size="8" hint="JPG, PNG or PDF · up to 8 MB" />
+                    @error('br_document')<span class="text-xs text-rose-600">{{ $message }}</span>@enderror
+                </div>
+                <div>
+                    <span class="font-medium text-gray-700">Owner NIC copy (front)</span>
+                    <x-file-drop name="nic_document" accept=".jpg,.jpeg,.png,.pdf" :max-size="8" required hint="JPG, PNG or PDF · up to 8 MB" />
+                    @error('nic_document')<span class="text-xs text-rose-600">{{ $message }}</span>@enderror
+                </div>
             </div>
             <label class="mt-6 flex items-start gap-3 text-sm text-gray-600">
                 <input type="checkbox" name="terms" value="1" required class="mt-1 rounded" @checked(old('terms'))>

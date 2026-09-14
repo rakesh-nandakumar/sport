@@ -1,22 +1,58 @@
 @extends('layouts.app')
 @section('title', 'Booking '.$booking->reference.' · EntryPoint.lk')
 
+@push('head')
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        body { background: #fff !important; }
+        .print-hero {
+            background: #fff !important;
+            color: #0f172a !important;
+            border: 1px solid #d1d5db !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .print-hero * { color: #0f172a !important; }
+        .print-qr-box {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
 <section class="mx-auto max-w-4xl px-4 pb-16">
     @php($isNew = session('message') && str_contains(session('message'), 'placed'))
 
-    <div class="rounded-3xl {{ $booking->isActive() ? 'bg-gray-900' : 'bg-gray-600' }} p-8 text-white">
-        <p class="text-sm uppercase tracking-[.3em] text-red-400">{{ $isNew ? 'Booking placed' : 'Booking' }}</p>
-        <h1 class="display mt-1 text-5xl md:text-6xl">{{ $booking->reference }}</h1>
-        <div class="mt-4 flex flex-wrap gap-2">
-            <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $booking->status->badge() }}">{{ $booking->status->label() }}</span>
-            <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $booking->payment_status->badge() }}">{{ $booking->payment_status->label() }}</span>
-            <span class="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{{ $booking->payment_method->label() }}</span>
-            @if($booking->isLocked())
-                <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-200"><i class="fa-solid fa-lock mr-1"></i>Slot locked</span>
+    <div class="print-hero rounded-3xl {{ $booking->isActive() ? 'bg-gray-900' : 'bg-gray-600' }} p-8 text-white">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+                <p class="text-sm uppercase tracking-[.3em] text-red-400">{{ $isNew ? 'Booking placed' : 'Booking' }}</p>
+                <h1 class="display mt-1 text-5xl md:text-6xl">{{ $booking->reference }}</h1>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $booking->status->badge() }}">{{ $booking->status->label() }}</span>
+                    <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $booking->payment_status->badge() }}">{{ $booking->payment_status->label() }}</span>
+                    <span class="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{{ $booking->payment_method->label() }}</span>
+                    @if($booking->isLocked())
+                        <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-200"><i class="fa-solid fa-lock mr-1"></i>Slot locked</span>
+                    @endif
+                    @if($booking->isCheckedIn())
+                        <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-200"><i class="fa-solid fa-circle-check mr-1"></i>Checked in at {{ $booking->checked_in_at->format('h:i A') }}</span>
+                    @endif
+                </div>
+                <p class="mt-4 text-gray-300">Show this reference at <strong class="text-white">{{ $booking->venue->name }}</strong> when you arrive.</p>
+                <button type="button" onclick="window.print()" class="no-print mt-4 inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/10"><i class="fa-solid fa-print"></i>Print</button>
+            </div>
+            @if($booking->isActive())
+                <div class="print-qr-box rounded-2xl bg-white p-4 text-center">
+                    {!! $booking->qrCodeSvg() !!}
+                    <p class="mt-2 max-w-[180px] text-xs font-medium text-gray-600">Show this QR code at the venue to check in.</p>
+                    <p class="sr-only">Check-in code: {{ $booking->qr_token }} ({{ $booking->checkinUrl() }})</p>
+                </div>
             @endif
         </div>
-        <p class="mt-4 text-gray-300">Show this reference at <strong class="text-white">{{ $booking->venue->name }}</strong> when you arrive.</p>
     </div>
 
     <div class="mt-8 grid gap-8 md:grid-cols-[1fr_320px]">
@@ -45,7 +81,7 @@
                     @if($booking->payment_method === \App\Enums\PaymentMethod::PayAtVenue)
                         <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-gray-600">
                             <li>Your slot is on hold. The venue may call you to confirm — once they confirm, the slot is locked.</li>
-                            <li>Until then, a customer who pays online or by bank transfer for the same slot can replace this hold. You'll be notified immediately if that happens.</li>
+                            <li>Until then, another customer who pays online or by bank transfer for the same slot can replace this hold. You'll be notified immediately if that happens.</li>
                             <li>Arrive a few minutes early, quote <strong>{{ $booking->reference }}</strong> and pay <strong>{{ lkr($booking->total) }}</strong> at the counter.</li>
                         </ol>
                     @elseif($booking->payment_method === \App\Enums\PaymentMethod::BankTransfer)
@@ -74,11 +110,14 @@
                             <p class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800"><i class="fa-solid fa-check mr-1"></i>Slip uploaded {{ $payment->updated_at->diffForHumans() }}@if($payment->reference) (ref {{ $payment->reference }})@endif. Waiting for the venue to verify.</p>
                         @endif
                         @if($booking->payment_status !== \App\Enums\PaymentStatus::Paid)
-                            <form method="POST" action="{{ route('bookings.proof', $booking) }}" enctype="multipart/form-data" class="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                            <form method="POST" action="{{ route('bookings.proof', $booking) }}" enctype="multipart/form-data" class="mt-4 grid gap-3 sm:grid-cols-2">
                                 @csrf
-                                <label class="block text-sm"><span class="text-gray-700">Transfer slip (jpg/png/pdf)</span><input type="file" name="proof" required accept=".jpg,.jpeg,.png,.pdf" class="mt-1 block w-full text-sm"></label>
+                                <div class="sm:col-span-2">
+                                    <x-file-drop name="proof" accept=".jpg,.jpeg,.png,.pdf" :max-size="5" required hint="JPG, PNG or PDF · up to 5 MB" />
+                                    @error('proof')<span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>@enderror
+                                </div>
                                 <label class="block text-sm"><span class="text-gray-700">Bank reference <span class="text-gray-400">(optional)</span></span><input name="reference" class="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"></label>
-                                <button class="btn-brand">{{ $payment?->proof_path ? 'Re-upload' : 'Upload slip' }}</button>
+                                <div class="flex items-end"><button class="btn-brand w-full sm:w-auto">{{ $payment?->proof_path ? 'Re-upload' : 'Upload slip' }}</button></div>
                             </form>
                         @endif
                     @endif
@@ -92,13 +131,13 @@
             @elseif($booking->status === \App\Enums\BookingStatus::Bumped)
                 <div class="rounded-2xl bg-rose-50 p-6 text-sm text-rose-800">
                     <h2 class="text-lg font-semibold">This booking was replaced</h2>
-                    <p class="mt-2">A customer paid for the same slot, which outranks a pay-at-venue hold. Next time choose bank transfer (or online payment when available) to lock your slot.</p>
+                    <p class="mt-2">Another customer paid for the same slot, which outranks a pay-at-venue hold. Next time choose bank transfer (or online payment when available) to lock your slot.</p>
                     <a href="{{ route('booking.build', $booking->service) }}" class="btn-brand mt-4">Book another time</a>
                 </div>
             @endif
         </div>
 
-        <aside class="space-y-4 md:self-start">
+        <aside class="no-print space-y-4 md:self-start">
             <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm text-sm">
                 <h3 class="font-semibold text-gray-900">Need help?</h3>
                 <p class="mt-2 text-gray-600">Call the venue directly:</p>

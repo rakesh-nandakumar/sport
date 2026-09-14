@@ -70,7 +70,7 @@ class VenueController extends Controller
         $venue->setAttribute('distance_km', $location ? $venue->distanceFrom($location['lat'], $location['lng']) : null);
 
         // "Today at a glance": every service's start-time grid for today (default option), so a
-        // customer can see availability and prices straight from the listing.
+        // customer can see availability and prices straight from the venue page.
         $today = today();
         $todaySlots = $venue->services->mapWithKeys(function (Service $service) use ($today, $venue) {
             $service->setRelation('venue', $venue); // hours are already loaded on $venue

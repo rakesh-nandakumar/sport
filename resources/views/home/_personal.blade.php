@@ -12,7 +12,7 @@
                 @if($location)
                     Sorted by what you play and what's closest to {{ $location['label'] }}.
                 @else
-                    From team sports to gaming stations — every listing is bookable by the block.
+                    From team sports to gaming stations — every service is bookable by the block.
                 @endif
             </p>
         </div>
@@ -32,7 +32,7 @@
                     <span class="mb-auto grid h-9 w-9 place-items-center rounded-xl bg-white/15 text-lg backdrop-blur"><i class="{{ $type->icon }}"></i></span>
                     <span class="display text-2xl leading-none md:text-3xl">{{ $type->name }}</span>
                     <span class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-200">
-                        {{ $type->services_count }} {{ Str::plural('listing', $type->services_count) }}
+                        {{ $type->services_count }} {{ Str::plural('service', $type->services_count) }}
                         @if($type->nearest_km !== null)<span class="rounded-full bg-white/15 px-2 py-0.5">nearest {{ $type->nearest_km < 1 ? '<1' : round($type->nearest_km) }} km</span>@endif
                         @if($type->affinity > 0)<span class="rounded-full bg-brand/80 px-2 py-0.5 text-white">for you</span>@endif
                     </span>
@@ -49,7 +49,7 @@
             <div class="flex items-end justify-between">
                 <div>
                     <h2 class="display text-4xl md:text-5xl text-gray-900">Near {{ $location['label'] }}</h2>
-                    <p class="mt-1 text-gray-500">Closest places to play, within {{ setting('location.nearby_km') }} km.</p>
+                    <p class="mt-1 text-gray-500">Closest venues to play, within {{ setting('location.nearby_km') }} km.</p>
                 </div>
                 <a href="{{ route('venues.index', ['sort' => 'nearest']) }}" class="hidden text-sm font-semibold text-brand hover:underline sm:block">All nearby →</a>
             </div>
@@ -114,7 +114,7 @@
 <section class="{{ $nearby->isNotEmpty() ? 'bg-white' : 'bg-gray-50' }} py-14">
     <div class="mx-auto max-w-6xl px-4">
         <h2 class="display text-4xl md:text-5xl text-gray-900">Popular venues</h2>
-        <p class="mt-1 text-gray-500">Top-rated places our community keeps coming back to.</p>
+        <p class="mt-1 text-gray-500">Top-rated venues our community keeps coming back to.</p>
         <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             @forelse($featured as $venue)
                 <x-venue-card :venue="$venue" />

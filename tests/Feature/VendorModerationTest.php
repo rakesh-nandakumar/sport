@@ -4,6 +4,12 @@ namespace Tests\Feature;
 
 use App\Enums\Role;
 use App\Enums\VendorStatus;
+use App\Filament\Pages\ManageSettings;
+use App\Filament\Resources\ActivityTypes\Pages\CreateActivityType;
+use App\Filament\Resources\VendorProfiles\Pages\ListVendorProfiles;
+use App\Filament\Resources\Venues\Pages\ListVenues;
+use App\Filament\Vendor\Resources\Venues\Pages\CreateVenue;
+use App\Filament\Vendor\Resources\Venues\Schemas\VenueForm;
 use App\Models\ActivityType;
 use App\Models\Service;
 use App\Models\User;
@@ -13,9 +19,11 @@ use App\Support\Settings;
 use Carbon\Carbon;
 use Database\Seeders\ActivityTypeSeeder;
 use Database\Seeders\VenueSeeder;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class VendorModerationTest extends TestCase
@@ -40,7 +48,7 @@ class VendorModerationTest extends TestCase
 
         $response = $this->post('/register/vendor', $this->application());
 
-        $response->assertRedirect(route('vendor.dashboard'));
+        $response->assertRedirect(route('filament.vendor.pages.dashboard'));
         $user = User::where('email', 'owner@newarena.lk')->firstOrFail();
         $this->assertSame(Role::Vendor, $user->role_id);
         $this->assertSame(VendorStatus::Pending, $user->vendorStatus());
@@ -58,8 +66,8 @@ class VendorModerationTest extends TestCase
         $this->assertTrue($this->admin->fresh()->notifications->pluck('data.message')->contains(fn ($m) => str_contains($m, 'New vendor application')));
 
         // The vendor sees their status, and can already prepare a venue.
-        $this->actingAs($user)->get(route('vendor.dashboard'))->assertOk()->assertSee('Pending review')->assertSee('reviewing your application');
-        $this->actingAs($user)->get(route('vendor.venues.create'))->assertOk()->assertSee('New Arena (Pvt) Ltd');
+        $this->actingAs($user)->get(route('filament.vendor.pages.dashboard'))->assertOk()->assertSee('Pending review')->assertSee('reviewing your application');
+        $this->actingAs($user)->get(route('filament.vendor.resources.venues.create'))->assertOk()->assertSee('New Arena (Pvt) Ltd');
     }
 
     public function test_companies_must_supply_registration_number_and_certificate(): void
@@ -79,7 +87,7 @@ class VendorModerationTest extends TestCase
         $this->post('/register/vendor', $this->application());
         $vendor = User::where('email', 'owner@newarena.lk')->firstOrFail();
 
-        $this->actingAs($vendor)->post(route('vendor.venues.store'), $this->venuePayload())->assertRedirect();
+        $this->createVenueViaFilament($vendor);
         $venue = Venue::where('name', 'New Arena Courts')->firstOrFail();
         $this->assertTrue($venue->is_approved, 'venue approval itself is not required by default');
         $this->assertFalse($venue->isLive(), 'but the vendor is still pending');
@@ -89,10 +97,16 @@ class VendorModerationTest extends TestCase
         $this->actingAs($vendor)->get(route('venues.show', $venue))->assertOk(); // owner can preview
 
         // Activate from the admin panel.
-        $this->actingAs($this->admin)->get(route('admin.vendors.index', ['status' => 'pending']))->assertOk()->assertSee('New Arena (Pvt) Ltd');
-        $this->actingAs($this->admin)->get(route('admin.vendors.show', $vendor->vendorProfile))->assertOk()->assertSee('PV123456')->assertSee('Owner NIC');
+        Livewire::actingAs($this->admin)->test(ListVendorProfiles::class)
+            ->filterTable('status', 'pending')
+            ->assertCanSeeTableRecords([$vendor->vendorProfile]);
+
+        $this->actingAs($this->admin)->get(route('filament.admin.resources.vendors.view', $vendor->vendorProfile))->assertOk()->assertSee('PV123456')->assertSee('Owner NIC');
         $this->actingAs($this->admin)->get(route('admin.vendors.document', [$vendor->vendorProfile, 'nic']))->assertOk();
-        $this->actingAs($this->admin)->post(route('admin.vendors.status', $vendor->vendorProfile), ['status' => 'active'])->assertRedirect();
+
+        Livewire::actingAs($this->admin)->test(ListVendorProfiles::class)
+            ->callTableAction('activate', $vendor->vendorProfile)
+            ->assertHasNoTableActionErrors();
 
         $this->assertSame(VendorStatus::Active, $vendor->fresh()->vendorStatus());
         $this->assertTrue($venue->fresh()->isLive());
@@ -108,14 +122,19 @@ class VendorModerationTest extends TestCase
 
         $this->get('/venues')->assertSee('CR7 Futsal Arena');
 
-        $this->actingAs($this->admin)->post(route('admin.vendors.status', $profile), ['status' => 'suspended'])->assertSessionHasErrors('review_notes');
-        $this->actingAs($this->admin)->post(route('admin.vendors.status', $profile), ['status' => 'suspended', 'review_notes' => 'Repeated no-shows on confirmed bookings.'])->assertRedirect();
+        Livewire::actingAs($this->admin)->test(ListVendorProfiles::class)
+            ->callTableAction('changeStatus', $profile, data: ['status' => 'suspended'])
+            ->assertHasTableActionErrors(['review_notes']);
+
+        Livewire::actingAs($this->admin)->test(ListVendorProfiles::class)
+            ->callTableAction('changeStatus', $profile, data: ['status' => 'suspended', 'review_notes' => 'Repeated no-shows on confirmed bookings.'])
+            ->assertHasNoTableActionErrors();
 
         $this->assertSame(VendorStatus::Suspended, $vendor->fresh()->vendorStatus());
         $this->get('/venues')->assertDontSee('venues/cr7-futsal-arena');
         $this->get('/')->assertDontSee('venues/cr7-futsal-arena');
         $this->get(route('booking.build', $court))->assertNotFound();
-        $this->actingAs($vendor->fresh())->get(route('vendor.dashboard'))->assertOk()->assertSee('Suspended')->assertSee('Repeated no-shows');
+        $this->actingAs($vendor->fresh())->get(route('filament.vendor.pages.dashboard'))->assertOk()->assertSee('Suspended')->assertSee('Repeated no-shows');
     }
 
     public function test_only_super_admins_can_change_vendor_status_or_settings(): void
@@ -123,28 +142,35 @@ class VendorModerationTest extends TestCase
         $moderator = User::factory()->create(['role_id' => Role::Moderator]);
         $profile = VendorProfile::firstOrFail();
 
-        $this->actingAs($moderator)->get(route('admin.vendors.index'))->assertOk();
-        $this->actingAs($moderator)->get(route('admin.vendors.show', $profile))->assertOk()->assertSee('Only a Super Administrator');
-        $this->actingAs($moderator)->post(route('admin.vendors.status', $profile), ['status' => 'suspended', 'review_notes' => 'x'])->assertForbidden();
-        $this->actingAs($moderator)->get(route('admin.settings.edit'))->assertForbidden();
-        $this->actingAs(User::factory()->create(['role_id' => Role::Vendor]))->get(route('admin.vendors.index'))->assertForbidden();
+        $this->actingAs($moderator)->get(route('filament.admin.resources.vendors.index'))->assertOk();
+        $this->actingAs($moderator)->get(route('filament.admin.resources.vendors.view', $profile))->assertOk();
+
+        Livewire::actingAs($moderator)->test(ListVendorProfiles::class)
+            ->assertTableActionHidden('changeStatus', $profile)
+            ->assertTableActionHidden('activate', $profile);
+
+        $this->actingAs($moderator)->get(route('filament.admin.pages.settings'))->assertForbidden();
+        $this->actingAs(User::factory()->create(['role_id' => Role::Vendor]))->get(route('filament.admin.resources.vendors.index'))->assertForbidden();
     }
 
     public function test_super_admin_can_change_site_settings(): void
     {
-        $this->actingAs($this->admin)->get(route('admin.settings.edit'))->assertOk()->assertSee('Bank-transfer verification window')->assertSee('Not integrated');
+        $this->actingAs($this->admin)->get(route('filament.admin.pages.settings'))->assertOk()->assertSee('Bank-transfer verification window')->assertSee('Coming soon');
 
-        $this->actingAs($this->admin)->put(route('admin.settings.update'), [
-            'payments_enabled' => ['pay_at_venue', 'card'], // card is not integrated -> ignored
-            'bank_transfer_hold_minutes' => 30,
-            'vendors_require_activation' => 1,
-            'venues_require_approval' => 1,
-            'max_days_ahead' => 21,
-            'nearby_km' => 40,
-            'amenities' => "Parking\nSauna\n\nParking",
-            'support_email' => 'help@entrypoint.lk',
-            'support_phone' => '0771234567',
-        ])->assertRedirect()->assertSessionHasNoErrors();
+        Livewire::actingAs($this->admin)->test(ManageSettings::class)
+            ->fillForm([
+                'payments_enabled' => ['pay_at_venue', 'card'], // card is not integrated -> ignored
+                'bank_transfer_hold_minutes' => 30,
+                'vendors_require_activation' => true,
+                'venues_require_approval' => true,
+                'max_days_ahead' => 21,
+                'nearby_km' => 40,
+                'amenities' => "Parking\nSauna\n\nParking",
+                'support_email' => 'help@entrypoint.lk',
+                'support_phone' => '0771234567',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
 
         Settings::flush();
         $this->assertSame(['pay_at_venue'], setting('payments.enabled'));
@@ -155,32 +181,93 @@ class VendorModerationTest extends TestCase
 
         // With venue approval on, a new venue from an active vendor is not live until approved.
         $vendor = User::where('email', 'vendor@entrypoint.lk')->firstOrFail();
-        $this->actingAs($vendor)->post(route('vendor.venues.store'), $this->venuePayload())->assertRedirect();
+        $this->createVenueViaFilament($vendor);
         $venue = Venue::where('name', 'New Arena Courts')->firstOrFail();
         $this->assertFalse($venue->is_approved);
-        $this->actingAs($this->admin)->post(route('admin.venues.approval', $venue))->assertRedirect();
+
+        Livewire::actingAs($this->admin)->test(ListVenues::class)
+            ->callTableAction('toggleApproval', $venue)
+            ->assertHasNoTableActionErrors();
+
         $this->assertTrue($venue->fresh()->isLive());
 
         // Nobody can switch every method off.
-        $this->actingAs($this->admin)->put(route('admin.settings.update'), [
-            'payments_enabled' => [],
-            'bank_transfer_hold_minutes' => 30, 'max_days_ahead' => 21, 'nearby_km' => 40, 'amenities' => 'Parking',
-            'support_email' => 'help@entrypoint.lk', 'support_phone' => '0771234567',
-        ])->assertSessionHasErrors('payments_enabled');
+        Livewire::actingAs($this->admin)->test(ManageSettings::class)
+            ->fillForm([
+                'payments_enabled' => [],
+                'bank_transfer_hold_minutes' => 30, 'max_days_ahead' => 21, 'nearby_km' => 40, 'amenities' => 'Parking',
+                'support_email' => 'help@entrypoint.lk', 'support_phone' => '0771234567',
+            ])
+            ->call('save')
+            ->assertHasFormErrors(['payments_enabled']);
     }
 
     public function test_activity_type_photo_can_be_uploaded_by_admin(): void
     {
         Storage::fake('public');
 
-        $this->actingAs($this->admin)->post(route('admin.activity-types.store'), [
-            'name' => 'Go-karting', 'icon' => 'fa-solid fa-flag-checkered', 'color' => '#111111', 'unit_label' => 'Kart',
-            'default_slot_minutes' => 15, 'sort_order' => 20, 'image_upload' => UploadedFile::fake()->image('karts.jpg', 1200, 800),
-        ])->assertRedirect(route('admin.activity-types.index'));
+        Livewire::actingAs($this->admin)->test(CreateActivityType::class)
+            ->fillForm([
+                'name' => 'Go-karting',
+                'icon' => 'fa-solid fa-flag-checkered',
+                'color' => '#111111',
+                'unit_label' => 'Kart',
+                'default_slot_minutes' => 15,
+                'sort_order' => 20,
+                'image_upload' => UploadedFile::fake()->image('karts.jpg', 1200, 800),
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
 
         $type = ActivityType::where('slug', 'go-karting')->firstOrFail();
         Storage::disk('public')->assertExists($type->image);
         $this->assertStringContainsString('storage/activity-types', $type->imageUrl());
+    }
+
+    public function test_staff_can_sign_in_as_a_vendor_and_switch_back(): void
+    {
+        $vendor = User::where('email', 'vendor@entrypoint.lk')->firstOrFail();
+
+        Livewire::actingAs($this->admin)->test(ListVendorProfiles::class)
+            ->callTableAction('impersonate', $vendor->vendorProfile)
+            ->assertHasNoTableActionErrors()
+            ->assertRedirect(route('filament.vendor.pages.dashboard'));
+
+        $this->assertSame($vendor->id, auth()->id());
+        $this->get(route('filament.vendor.pages.dashboard'))->assertOk()->assertSee('You are signed in as')->assertSee('Back to admin');
+
+        $this->post(route('impersonate.stop'))->assertRedirect(route('filament.admin.resources.vendors.index'));
+        $this->assertSame($this->admin->id, auth()->id());
+        $this->get(route('filament.vendor.pages.dashboard'))->assertDontSee('Back to admin');
+    }
+
+    public function test_only_staff_can_start_impersonation_and_customers_cannot_stop_it(): void
+    {
+        $vendor = User::where('email', 'vendor@entrypoint.lk')->firstOrFail();
+        $marketing = User::factory()->create(['role_id' => Role::MarketingManager]);
+
+        Livewire::actingAs($marketing)->test(ListVendorProfiles::class)
+            ->assertTableActionHidden('impersonate', $vendor->vendorProfile);
+
+        $customer = User::factory()->create(['role_id' => Role::Customer]);
+        $this->actingAs($customer)->post(route('impersonate.stop'))->assertForbidden();
+    }
+
+    public function test_moderator_can_sign_in_as_a_vendor_and_switch_back(): void
+    {
+        $vendor = User::where('email', 'vendor@entrypoint.lk')->firstOrFail();
+        $moderator = User::factory()->create(['role_id' => Role::Moderator]);
+
+        Livewire::actingAs($moderator)->test(ListVendorProfiles::class)
+            ->callTableAction('impersonate', $vendor->vendorProfile)
+            ->assertHasNoTableActionErrors()
+            ->assertRedirect(route('filament.vendor.pages.dashboard'));
+
+        $this->assertSame($vendor->id, auth()->id());
+        $this->get(route('filament.vendor.pages.dashboard'))->assertOk()->assertSee('Back to admin');
+
+        $this->post(route('impersonate.stop'))->assertRedirect(route('filament.admin.resources.vendors.index'));
+        $this->assertSame($moderator->id, auth()->id());
     }
 
     protected function application(): array
@@ -198,12 +285,22 @@ class VendorModerationTest extends TestCase
         ];
     }
 
-    protected function venuePayload(): array
+    /** Creates "New Arena Courts" for $vendor through the Filament vendor panel, like the old form POST did. */
+    protected function createVenueViaFilament(User $vendor): void
     {
-        return [
-            'name' => 'New Arena Courts', 'address' => '10 Peradeniya Road', 'city' => 'Kandy', 'district' => 'Kandy', 'phone' => '0812223344',
-            'latitude' => 7.2906, 'longitude' => 80.6337,
-            'hours' => array_fill(0, 7, ['opens_at' => '08:00', 'closes_at' => '22:00', 'is_closed' => 0]),
-        ];
+        Filament::setCurrentPanel('vendor');
+
+        Livewire::actingAs($vendor)->test(CreateVenue::class)
+            ->fillForm([
+                'name' => 'New Arena Courts', 'address' => '10 Peradeniya Road', 'city' => 'Kandy', 'district' => 'Kandy', 'phone' => '0812223344',
+                'latitude' => 7.2906, 'longitude' => 80.6337,
+                'hours' => VenueForm::defaultHours(null),
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        // The rest of the test acts in the admin panel; Filament's "current panel" otherwise stays
+        // stuck on 'vendor' for any Livewire component resolved for the remainder of this test.
+        Filament::setCurrentPanel('admin');
     }
 }

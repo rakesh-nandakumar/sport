@@ -1,0 +1,295 @@
+@startuml EntryPoint-ERD
+!define pk(x) <b><color:#b8860b><&key></color> x</b>
+!define fk(x) <color:#4682b4><&link-intact></color> x
+
+hide circle
+skinparam linetype ortho
+skinparam roundcorner 6
+skinparam class {
+  BackgroundColor #FEFEFE
+  BorderColor #666666
+  ArrowColor #444444
+}
+
+' ============================ ENTITIES ============================
+
+entity "users" as users {
+  pk(id) : bigint
+  --
+  name : string
+  email : string <<unique>>
+  phone : string
+  password : string
+  fk(role_id) : tinyint  ' Role enum: SuperAdministrator, Vendor, Customer, ...
+  latitude : decimal(10,7)
+  longitude : decimal(10,7)
+  location_label : string
+  location_updated_at : timestamp
+  email_verified_at : timestamp
+  timestamps
+}
+
+entity "vendor_profiles" as vendor_profiles {
+  pk(id) : bigint
+  --
+  fk(user_id) : bigint <<unique>>
+  business_name : string
+  business_type : string
+  registration_number : string
+  owner_nic : string
+  contact_person : string
+  contact_phone : string
+  business_email : string
+  address_line1 / city / district : string
+  latitude / longitude : decimal
+  activity_type_ids : json
+  br_document_path : string
+  nic_document_path : string
+  status : string  ' pending, active, suspended, rejected
+  fk(reviewed_by) : bigint (nullable)
+  reviewed_at : timestamp
+  terms_accepted_at : timestamp
+  timestamps
+}
+
+entity "activity_types" as activity_types {
+  pk(id) : bigint
+  --
+  name : string
+  slug : string <<unique>>
+  icon / color / image : string
+  unit_label : string
+  requires_game : boolean
+  default_slot_minutes : smallint
+  is_featured : boolean
+  sort_order : smallint
+  timestamps
+}
+
+entity "games" as games {
+  pk(id) : bigint
+  --
+  fk(activity_type_id) : bigint
+  name : string
+  platform : string
+  max_players : tinyint
+  cover_image : string
+  timestamps
+}
+
+entity "venues" as venues {
+  pk(id) : bigint
+  --
+  fk(user_id) : bigint
+  name : string
+  slug : string <<unique>>
+  tagline / description : text
+  address / city / district / postal_code : string
+  latitude / longitude : decimal
+  phone / email / website : string
+  cover_image / gallery(json) / amenities(json)
+  bank_name / bank_branch / bank_account_name / bank_account_number : string
+  is_approved : boolean
+  is_featured : boolean
+  timestamps
+}
+
+entity "venue_hours" as venue_hours {
+  pk(id) : bigint
+  --
+  fk(venue_id) : bigint
+  day_of_week : tinyint  ' 0=Sun .. 6=Sat
+  opens_at / closes_at : time
+  is_closed : boolean
+  <<unique: venue_id + day_of_week>>
+}
+
+entity "reviews" as reviews {
+  pk(id) : bigint
+  --
+  fk(venue_id) : bigint
+  fk(user_id) : bigint
+  rating : tinyint (1-5)
+  comment : text
+  timestamps
+}
+
+entity "venue_views" as venue_views {
+  pk(id) : bigint
+  --
+  fk(venue_id) : bigint
+  fk(user_id) : bigint (nullable)
+  session_id : string (nullable)
+  viewed_at : timestamp
+}
+
+entity "services" as services {
+  pk(id) : bigint
+  --
+  fk(venue_id) : bigint
+  fk(activity_type_id) : bigint
+  name / description / image
+  slot_minutes / min_slots / max_slots : smallint
+  buffer_minutes / lead_time_minutes : smallint
+  max_players : smallint
+  opens_at / closes_at : time (override)
+  is_active : boolean
+  timestamps
+}
+
+entity "service_options" as service_options {
+  pk(id) : bigint
+  --
+  fk(service_id) : bigint
+  name / description : string
+  price_per_slot : decimal(10,2)
+  capacity : smallint
+  is_default : boolean
+  sort_order : smallint
+  timestamps
+}
+
+entity "service_rates" as service_rates {
+  pk(id) : bigint
+  --
+  fk(service_id) : bigint
+  name : string
+  days : json  ' e.g. [5,6] = Fri/Sat
+  starts_at / ends_at : time
+  multiplier : decimal(5,2)
+  timestamps
+}
+
+entity "game_service" as game_service {
+  fk(game_id) : bigint
+  fk(service_id) : bigint
+  <<composite PK: game_id + service_id>>
+}
+
+entity "bookings" as bookings {
+  pk(id) : bigint
+  --
+  reference : string(16) <<unique>>
+  qr_token : string(64) <<unique>>
+  fk(user_id) : bigint
+  fk(venue_id) : bigint
+  fk(service_id) : bigint
+  fk(service_option_id) : bigint
+  fk(game_id) : bigint (nullable)
+  starts_at / ends_at : datetime
+  slots : smallint
+  players : smallint (nullable)
+  unit_price / subtotal / discount / total : decimal(10,2)
+  price_breakdown : json
+  currency : string(3)
+  status : string  ' pending, confirmed, cancelled, expired, completed
+  payment_method : string
+  payment_status : string
+  priority : tinyint
+  customer_name / customer_phone : string
+  notes : text
+  vendor_confirmed_at / hold_expires_at / cancelled_at : timestamp
+  cancel_reason : string
+  fk(bumped_by_booking_id) : bigint (nullable, self)
+  checked_in_at : timestamp
+  fk(checked_in_by) : bigint (nullable)
+  timestamps
+}
+
+entity "payments" as payments {
+  pk(id) : bigint
+  --
+  fk(booking_id) : bigint
+  method : string
+  amount : decimal(10,2)
+  status : string  ' pending_verification, verified, paid, rejected...
+  reference : string
+  proof_path : string (bank slip upload)
+  fk(verified_by) : bigint (nullable)
+  verified_at : timestamp
+  meta : json
+  timestamps
+}
+
+entity "settings" as settings {
+  pk(id) : bigint
+  --
+  key : string <<unique>>
+  value : json
+  timestamps
+}
+
+entity "notifications" as notifications {
+  pk(id) : uuid
+  --
+  type : string
+  notifiable_type / notifiable_id : morph  ' polymorphic -> users
+  data : text
+  read_at : timestamp
+  timestamps
+}
+
+' ============================ RELATIONSHIPS ============================
+
+users ||--o{ venues : "(1) owns"
+users ||--o| vendor_profiles : "(2) has"
+users ||--o{ vendor_profiles : "(3) reviewed_by"
+users ||--o{ bookings : "(4) places"
+users ||--o{ bookings : "(5) checked_in_by"
+users ||--o{ reviews : "(6) writes"
+users ||--o{ venue_views : "(7) views"
+users ||--o{ payments : "(8) verified_by"
+users ||--o{ notifications : "(9) notified"
+
+venues ||--o{ venue_hours : "(10) defines hours"
+venues ||--o{ services : "(11) offers"
+venues ||--o{ bookings : "(12) hosts"
+venues ||--o{ reviews : "(13) receives"
+venues ||--o{ venue_views : "(14) tracked by"
+
+activity_types ||--o{ games : "(15) categorizes"
+activity_types ||--o{ services : "(16) classifies"
+
+services ||--o{ service_options : "(17) priced via"
+services ||--o{ service_rates : "(18) peak pricing"
+services ||--o{ bookings : "(19) booked as"
+services ||--o{ game_service : "(20a) supports"
+games ||--o{ game_service : "(20b) available in"
+
+service_options ||--o{ bookings : "(21) selected tier"
+
+games ||--o{ bookings : "(22) chosen game"
+
+bookings ||--o{ payments : "(23) paid via"
+bookings ||--o| bookings : "(24) bumped by"
+
+' ============================ REAL-WORLD USE-CASE LEGEND ============================
+legend right
+|= # |= Relationship |= Real-world example |
+| 1 | users → venues (owner) | Vendor **Nimal** registers an account and lists his venue **"Colombo Futsal Arena"**; `venues.user_id` points back to Nimal. |
+| 2 | users ↔ vendor_profiles (1:1) | Nimal fills the vendor onboarding form (business name, NIC, bank details) which becomes his one `vendor_profiles` row awaiting approval. |
+| 3 | users → vendor_profiles (reviewer) | Admin **Priya** reviews Nimal's application in Filament and approves it; `vendor_profiles.reviewed_by` = Priya's user id. |
+| 4 | users → bookings (customer) | Customer **Kasun** books Court A for Friday 7-8pm; `bookings.user_id` = Kasun. |
+| 5 | users → bookings (check-in staff) | At the gate, staff member **Saman** scans Kasun's QR code; `bookings.checked_in_by` = Saman. |
+| 6 | users → reviews | After his match, Kasun leaves a 5-star review for the arena. |
+| 7 | users → venue_views | The system logs that Kasun viewed the arena's page twice this week, used to power "recently viewed" and personalized recommendations. |
+| 8 | users → payments (verifier) | Nimal manually verifies Kasun's uploaded bank-transfer slip as proof of payment; `payments.verified_by` = Nimal. |
+| 9 | users → notifications | Kasun receives a "Booking confirmed" notification after Nimal accepts the request. |
+| 10 | venues → venue_hours | The arena defines it is open Mon-Sat 06:00-23:00 and closed on Sunday. |
+| 11 | venues → services | The arena offers two bookable services: **"Futsal Court A"** and **"Badminton Court 1"**. |
+| 12 | venues → bookings | Every booking made against the arena is linked so Nimal's vendor dashboard can list today's reservations. |
+| 13 | venues → reviews | The arena accumulates reviews used to compute its average star rating shown on its listing. |
+| 14 | venues → venue_views | Analytics show the arena had 340 page views last month, helping rank it in "trending near you". |
+| 15 | activity_types → games | The **"PlayStation Gaming"** activity type has child games **FIFA 24** and **Mortal Kombat 1**. |
+| 16 | activity_types → services | The **"Futsal"** activity type is used to classify every futsal-court service across all venues, powering the "Browse by Activity" page. |
+| 17 | services → service_options | **"Futsal Court A"** offers two pricing tiers: **Standard** (Rs. 3,000/hr) and **Premium Turf** (Rs. 4,000/hr). |
+| 18 | services → service_rates | A weekend-evening rate rule multiplies the price by **1.5x** for Fri/Sat 18:00-00:00 slots. |
+| 19 | services → bookings | Kasun's booking is for the **"Futsal Court A"** service specifically. |
+| 20 | services ↔ games (pivot) | The **"PS5 Gaming Lounge"** service supports both **FIFA 24** and **Mortal Kombat 1**, so customers pick a game at checkout. |
+| 21 | service_options → bookings | Kasun's booking records he chose the **Premium Turf** option, locking in that tier's price. |
+| 22 | games → bookings | For the gaming lounge, Kasun's booking records he wants to play **FIFA 24** during his slot. |
+| 23 | bookings → payments | Kasun's booking has one payment row for the **bank transfer** he made (could later add a second for an on-site balance top-up). |
+| 24 | bookings ↔ bookings (self) | A confirmed **cash/pay-at-venue** booking with higher priority bumps an unpaid, unverified **bank-transfer hold** for the same slot; the bumped booking's `bumped_by_booking_id` points to the winning booking. |
+endlegend
+
+@enduml

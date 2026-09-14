@@ -4,13 +4,15 @@ namespace App\Models;
 
 use App\Enums\Role;
 use App\Enums\VendorStatus;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasFactory, Notifiable;
 
@@ -114,11 +116,22 @@ class User extends Authenticatable
         return $this->role()->isStaff();
     }
 
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return match ($panel->getId()) {
+            'admin' => $this->isStaff(),
+            // Super admins keep access to the vendor panel too, so "sign in as vendor" and direct
+            // support access both work without a separate account.
+            'vendor' => $this->isVendor() || $this->isAdmin(),
+            default => false,
+        };
+    }
+
     public function dashboardUrl(): string
     {
         return match (true) {
-            $this->isAdmin(), $this->isStaff() => route('admin.dashboard'),
-            $this->isVendor() => route('vendor.dashboard'),
+            $this->isStaff() => route('filament.admin.pages.dashboard'),
+            $this->isVendor() => route('filament.vendor.pages.dashboard'),
             default => route('bookings.index'),
         };
     }

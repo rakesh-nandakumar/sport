@@ -7,6 +7,10 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\Role;
 use App\Exceptions\SlotUnavailableException;
+use App\Filament\Resources\Venues\Pages\ListVenues;
+use App\Filament\Vendor\Resources\Bookings\Pages\ListBookings;
+use App\Filament\Vendor\Resources\Venues\Pages\EditVenue;
+use App\Filament\Vendor\Resources\Venues\RelationManagers\ServicesRelationManager;
 use App\Livewire\BookingBuilder;
 use App\Models\Booking;
 use App\Models\Service;
@@ -16,6 +20,7 @@ use App\Services\BookingService;
 use Carbon\Carbon;
 use Database\Seeders\ActivityTypeSeeder;
 use Database\Seeders\VenueSeeder;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -261,54 +266,56 @@ class BookingFlowTest extends TestCase
 
     public function test_vendor_panel_manages_bookings(): void
     {
+        Filament::setCurrentPanel('vendor');
         $service = app(BookingService::class);
         $booking = $service->reserve($this->customer, $this->court, $this->court->defaultOption(), Carbon::parse('2026-09-16 10:00:00'), 1, PaymentMethod::BankTransfer, $this->details());
         $vendor = $this->court->venue->owner;
 
         $this->actingAs($vendor);
-        $this->get(route('vendor.dashboard'))->assertOk()->assertSee('CR7 Futsal Arena')->assertSee('waiting for your verification')->assertSee($booking->reference);
-        $this->get(route('vendor.venues.index'))->assertOk();
-        $this->get(route('vendor.venues.edit', $this->court->venue))->assertOk()->assertSee('Map pin');
-        $this->get(route('vendor.venues.services.index', $this->court->venue))->assertOk()->assertSee('Court A (Main)');
-        $this->get(route('vendor.venues.services.edit', [$this->court->venue, $this->court]))->assertOk();
-        $this->get(route('vendor.venues.services.create', $this->court->venue))->assertOk();
-        $this->get(route('vendor.bookings.index', ['pending_payment' => 1]))->assertOk()->assertSee($booking->reference);
-        $this->get(route('vendor.bookings.show', $booking))->assertOk()->assertSee('Verify within');
-        $this->get(route('vendor.events'))->assertOk()->assertJsonCount(1);
+        $this->get(route('filament.vendor.pages.dashboard'))->assertOk()->assertSee('CR7 Futsal Arena')->assertSee('waiting for your verification')->assertSee($booking->reference);
+        $this->get(route('filament.vendor.resources.venues.index'))->assertOk();
+        $this->get(route('filament.vendor.resources.venues.edit', $this->court->venue))->assertOk();
+        $this->get(route('filament.vendor.resources.bookings.index', ['tableFilters[pending_payment][value]' => true]))->assertOk()->assertSee($booking->reference);
+        $this->get(route('filament.vendor.resources.bookings.view', $booking))->assertOk()->assertSee('Verify within');
 
-        $this->post(route('vendor.bookings.paid', $booking), ['reference' => 'TXN999'])->assertRedirect();
+        Livewire::actingAs($vendor)->test(ListBookings::class)
+            ->callTableAction('markPaid', $booking, data: ['reference' => 'TXN999'])
+            ->assertHasNoTableActionErrors();
+
         $booking->refresh();
         $this->assertSame(PaymentStatus::Paid, $booking->payment_status);
         $this->assertSame(BookingStatus::Confirmed, $booking->status);
         $this->assertSame(3, $booking->priority);
         $this->assertNull($booking->hold_expires_at);
 
-        $this->actingAs($this->customer)->get(route('vendor.dashboard'))->assertForbidden();
+        $this->actingAs($this->customer)->get(route('filament.vendor.pages.dashboard'))->assertForbidden();
     }
 
     public function test_vendor_can_create_a_service_with_options_and_rates(): void
     {
+        Filament::setCurrentPanel('vendor');
         $vendor = $this->court->venue->owner;
         $venue = $this->court->venue;
 
-        $this->actingAs($vendor)->post(route('vendor.venues.services.store', $venue), [
-            'activity_type_id' => $this->court->activity_type_id,
-            'name' => 'Court C',
-            'slot_minutes' => 30,
-            'min_slots' => 2,
-            'max_slots' => 6,
-            'buffer_minutes' => 5,
-            'lead_time_minutes' => 30,
-            'is_active' => 1,
-            'options' => [
-                ['name' => 'Full court', 'price_per_slot' => 2000, 'capacity' => 1],
-                ['name' => 'Half court', 'price_per_slot' => 1200, 'capacity' => 2],
-            ],
-            'default_option' => 0,
-            'rates' => [
-                ['name' => 'Peak', 'days' => [1, 2], 'starts_at' => '17:00', 'ends_at' => '21:00', 'multiplier' => 1.5],
-            ],
-        ])->assertRedirect(route('vendor.venues.services.index', $venue));
+        Livewire::actingAs($vendor)->test(ServicesRelationManager::class, ['ownerRecord' => $venue, 'pageClass' => EditVenue::class])
+            ->callTableAction('create', data: [
+                'activity_type_id' => $this->court->activity_type_id,
+                'name' => 'Court C',
+                'slot_minutes' => 30,
+                'min_slots' => 2,
+                'max_slots' => 6,
+                'buffer_minutes' => 5,
+                'lead_time_minutes' => 30,
+                'is_active' => 1,
+                'options' => [
+                    ['name' => 'Full court', 'price_per_slot' => 2000, 'capacity' => 1, 'is_default' => true],
+                    ['name' => 'Half court', 'price_per_slot' => 1200, 'capacity' => 2, 'is_default' => false],
+                ],
+                'rates' => [
+                    ['name' => 'Peak', 'days' => [1, 2], 'starts_at' => '17:00', 'ends_at' => '21:00', 'multiplier' => 1.5],
+                ],
+            ])
+            ->assertHasNoTableActionErrors();
 
         $created = Service::where('name', 'Court C')->firstOrFail();
         $this->assertCount(2, $created->options);
@@ -322,16 +329,19 @@ class BookingFlowTest extends TestCase
         $venue = Venue::firstOrFail();
 
         $this->actingAs($admin);
-        $this->get(route('admin.dashboard'))->assertOk();
-        $this->get(route('admin.users.index'))->assertOk();
-        $this->get(route('admin.venues.index'))->assertOk();
-        $this->get(route('admin.activity-types.index'))->assertOk()->assertSee('Paintball');
-        $this->get(route('admin.activity-types.create'))->assertOk()->assertSee('Tile photo');
-        $this->get(route('admin.games.index'))->assertOk()->assertSee('EA Sports FC 26');
+        $this->get(route('filament.admin.pages.dashboard'))->assertOk();
+        $this->get(route('filament.admin.resources.users.index'))->assertOk();
+        $this->get(route('filament.admin.resources.venues.index'))->assertOk();
+        $this->get(route('filament.admin.resources.activity-types.index'))->assertOk()->assertSee('Paintball');
+        $this->get(route('filament.admin.resources.activity-types.create'))->assertOk()->assertSee('Tile photo');
+        $this->get(route('filament.admin.resources.games.index'))->assertOk()->assertSee('EA Sports FC 26');
 
-        $this->post(route('admin.venues.approval', $venue))->assertRedirect();
+        Livewire::actingAs($admin)->test(ListVenues::class)
+            ->callTableAction('toggleApproval', $venue)
+            ->assertHasNoTableActionErrors();
+
         $this->assertFalse($venue->fresh()->is_approved);
-        $this->get(route('venues.show', $venue))->assertOk(); // admin can still see it
+        $this->actingAs($admin)->get(route('venues.show', $venue))->assertOk(); // admin can still see it
         $this->actingAs($this->customer)->get(route('venues.show', $venue))->assertNotFound();
     }
 

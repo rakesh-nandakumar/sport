@@ -5,7 +5,7 @@
 <section class="mx-auto max-w-6xl px-4 pb-16">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-            <h1 class="display text-4xl md:text-5xl text-gray-900">Find a place to play</h1>
+            <h1 class="display text-4xl md:text-5xl text-gray-900">Find a venue to play</h1>
             <p class="mt-1 text-gray-500">{{ $venues->total() }} {{ Str::plural('venue', $venues->total()) }} {{ $filters['activity'] ?? false ? 'offering '.$activityTypes->firstWhere('slug', $filters['activity'])?->name : '' }}{{ $filters['city'] ?? false ? ' in '.$filters['city'] : '' }}</p>
         </div>
     </div>

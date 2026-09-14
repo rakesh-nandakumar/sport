@@ -16,6 +16,7 @@ use App\Notifications\BookingNotification;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class BookingService
 {
@@ -227,6 +228,43 @@ class BookingService
     public function complete(Booking $booking, bool $noShow = false): void
     {
         $booking->update(['status' => $noShow ? BookingStatus::NoShow : BookingStatus::Completed]);
+    }
+
+    /**
+     * Check a customer in at the venue via their QR code. The actual write is an atomic conditional
+     * UPDATE (only when checked_in_at is still null), so two near-simultaneous scans of the same QR
+     * can't both succeed even on drivers (SQLite) where lockForUpdate() doesn't take a real row lock.
+     *
+     * @throws SlotUnavailableException
+     */
+    public function checkIn(Booking $booking, User $staff): void
+    {
+        DB::transaction(function () use ($booking, $staff) {
+            $locked = Booking::where('id', $booking->id)->lockForUpdate()->first();
+
+            if ($locked->checked_in_at !== null) {
+                $locked->loadMissing('checkedInBy');
+                $by = $locked->checkedInBy ? " by {$locked->checkedInBy->name}" : '';
+                throw new SlotUnavailableException("This QR code has already been used — checked in at {$locked->checked_in_at->format('h:i A')}{$by}.");
+            }
+
+            if (! $locked->isActive()) {
+                throw new SlotUnavailableException('This booking is '.Str::lower($locked->status->label()).' and cannot be checked in.');
+            }
+
+            $updated = Booking::where('id', $locked->id)
+                ->whereNull('checked_in_at')
+                ->update(['checked_in_at' => now(), 'checked_in_by' => $staff->id]);
+
+            if ($updated === 0) {
+                // Lost the race to a concurrent scan between the read above and this write.
+                $locked->refresh()->loadMissing('checkedInBy');
+                $by = $locked->checkedInBy ? " by {$locked->checkedInBy->name}" : '';
+                throw new SlotUnavailableException("This QR code has already been used — checked in at {$locked->checked_in_at->format('h:i A')}{$by}.");
+            }
+        });
+
+        $booking->refresh();
     }
 
     /**

@@ -36,13 +36,14 @@
 
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/file-drop.css">
     @livewireStyles
     @stack('head')
 </head>
 @php($hasLocation = (bool) session(\App\Services\PersonalizationService::SESSION_KEY) || auth()->user()?->hasLocation() || request()->cookie(\App\Services\PersonalizationService::COOKIE))
 <body class="bg-white text-gray-800 antialiased" data-has-location="{{ $hasLocation ? 1 : 0 }}">
 
-<header class="head">
+<header class="head no-print">
     <a href="{{ route('home') }}" class="brand">
         <img src="{{ asset('images/brand/wordmark-white.png') }}" alt="EntryPoint.lk" class="brand-logo">
     </a>
@@ -58,16 +59,16 @@
         @auth
             <a href="{{ route('bookings.index') }}" style="--i:2;">My bookings</a>
             <a href="{{ route('notifications.index') }}" style="--i:3;" class="relative">
-                Alerts
+                Notifications
                 @php($unread = auth()->user()->unreadNotifications()->count())
                 @if($unread)
                     <span class="nav-badge">{{ $unread > 9 ? '9+' : $unread }}</span>
                 @endif
             </a>
             @if(auth()->user()->isVendor())
-                <a href="{{ route('vendor.dashboard') }}" style="--i:4;">Vendor panel</a>
+                <a href="{{ route('filament.vendor.pages.dashboard') }}" style="--i:4;">Vendor panel</a>
             @elseif(auth()->user()->isAdmin() || auth()->user()->isStaff())
-                <a href="{{ route('admin.dashboard') }}" style="--i:4;">Admin</a>
+                <a href="{{ route('filament.admin.pages.dashboard') }}" style="--i:4;">Admin</a>
             @endif
             <form class="inline" method="POST" action="{{ route('logout') }}" style="--i:5;">
                 @csrf
@@ -85,7 +86,7 @@
     @yield('content')
 </main>
 
-<footer class="site-footer">
+<footer class="site-footer no-print">
     <div class="footer-content">
         <img src="{{ asset('images/brand/wordmark-white.png') }}" alt="EntryPoint.lk" class="footer-logo">
         <p>Book any sport, game or activity across Sri Lanka in seconds. Futsal courts, cricket nets, gaming lounges, paintball arenas, badminton halls and more — pick a venue, pick a time, and play.</p>

@@ -1,12 +1,12 @@
 <?php
 
-use App\Http\Controllers\Admin;
+use App\Http\Controllers\Admin\ImpersonationController;
+use App\Http\Controllers\Admin\VendorDocumentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\Vendor;
 use App\Http\Controllers\VenueController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +30,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/register/vendor', [AuthController::class, 'registerVendor'])->middleware('throttle:5,1');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+// Staff "sign in as vendor" starts from the Filament vendor list; this ends it
+Route::post('/impersonate/stop', [ImpersonationController::class, 'stop'])->middleware('auth')->name('impersonate.stop');
 
 // Customer (any signed-in user can book; the payment step is the modal inside the booking builder)
 Route::middleware('auth')->group(function () {
@@ -43,40 +45,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 });
 
-// Vendor
-Route::middleware(['auth', 'role:Vendor,SuperAdministrator'])->prefix('vendor')->name('vendor.')->group(function () {
-    Route::get('/', [Vendor\DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/events', [Vendor\DashboardController::class, 'events'])->name('events');
+// Vendor panel (Filament) lives at /vendor — see App\Providers\Filament\VendorPanelProvider.
+// Venues, services, bookings, the schedule and check-in scanning are all managed there now.
 
-    Route::resource('venues', Vendor\VenueController::class)->except(['show']);
-    Route::resource('venues.services', Vendor\ServiceController::class)->except(['show']);
-
-    Route::get('/bookings', [Vendor\BookingController::class, 'index'])->name('bookings.index');
-    Route::get('/bookings/{booking}', [Vendor\BookingController::class, 'show'])->name('bookings.show');
-    Route::post('/bookings/{booking}/confirm', [Vendor\BookingController::class, 'confirm'])->name('bookings.confirm');
-    Route::post('/bookings/{booking}/paid', [Vendor\BookingController::class, 'markPaid'])->name('bookings.paid');
-    Route::post('/bookings/{booking}/cancel', [Vendor\BookingController::class, 'cancel'])->name('bookings.cancel');
-    Route::post('/bookings/{booking}/complete', [Vendor\BookingController::class, 'complete'])->name('bookings.complete');
-});
-
-// Admin (moderators & marketing can look around; only super admins moderate vendors and change settings)
+// Admin panel (Filament) lives at /admin — see App\Providers\Filament\AdminPanelProvider.
+// Staff roles: moderators & marketing can manage venues, catalogue and users;
+// only super admins moderate vendors and change settings.
 Route::middleware(['auth', 'role:SuperAdministrator,Moderator,MarketingManager'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', [Admin\DashboardController::class, 'index'])->name('dashboard');
-    Route::resource('users', Admin\UserController::class)->only(['index', 'edit', 'update', 'destroy']);
-    Route::get('/venues', [Admin\VenueController::class, 'index'])->name('venues.index');
-    Route::post('/venues/{venue}/approval', [Admin\VenueController::class, 'toggleApproval'])->name('venues.approval');
-    Route::post('/venues/{venue}/featured', [Admin\VenueController::class, 'toggleFeatured'])->name('venues.featured');
-    Route::delete('/venues/{venue}', [Admin\VenueController::class, 'destroy'])->name('venues.destroy');
-    Route::resource('activity-types', Admin\ActivityTypeController::class)->except(['show']);
-    Route::resource('games', Admin\GameController::class)->except(['show']);
-
-    Route::get('/vendors', [Admin\VendorController::class, 'index'])->name('vendors.index');
-    Route::get('/vendors/{vendorProfile}', [Admin\VendorController::class, 'show'])->name('vendors.show');
-    Route::get('/vendors/{vendorProfile}/documents/{type}', [Admin\VendorController::class, 'document'])->name('vendors.document');
-
-    Route::middleware('role:SuperAdministrator')->group(function () {
-        Route::post('/vendors/{vendorProfile}/status', [Admin\VendorController::class, 'updateStatus'])->name('vendors.status');
-        Route::get('/settings', [Admin\SettingController::class, 'edit'])->name('settings.edit');
-        Route::put('/settings', [Admin\SettingController::class, 'update'])->name('settings.update');
-    });
+    Route::get('/vendors/{vendorProfile}/documents/{type}', VendorDocumentController::class)->name('vendors.document');
 });
