@@ -4,7 +4,7 @@
 @section('content')
 <nav class="small text-muted mb-1"><a href="{{ route('vendor.venues.index') }}">Venues</a> › <a href="{{ route('vendor.venues.services.index', $venue) }}">{{ $venue->name }}</a> › {{ $service->exists ? $service->name : 'New service' }}</nav>
 <h1 class="display fs-1 mb-0">{{ $service->exists ? $service->name : 'Add a service' }}</h1>
-<p class="text-muted">Define what's bookable, in what blocks, and at what price. Sportee calculates totals automatically.</p>
+<p class="text-muted">Define what's bookable, in what blocks, and at what price. EntryPoint.lk calculates totals automatically.</p>
 
 @php($optionsOld = old('options'))
 @php($ratesOld = old('rates'))

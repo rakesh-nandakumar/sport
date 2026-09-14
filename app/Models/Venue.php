@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\Role;
+use App\Enums\VendorStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,8 +16,8 @@ class Venue extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'name', 'slug', 'tagline', 'description', 'address', 'city', 'district',
-        'phone', 'email', 'website', 'cover_image', 'gallery', 'amenities',
+        'user_id', 'name', 'slug', 'tagline', 'description', 'address', 'city', 'district', 'postal_code',
+        'latitude', 'longitude', 'phone', 'email', 'website', 'cover_image', 'gallery', 'amenities',
         'bank_name', 'bank_branch', 'bank_account_name', 'bank_account_number',
         'is_approved', 'is_featured',
     ];
@@ -27,6 +29,8 @@ class Venue extends Model
             'amenities' => 'array',
             'is_approved' => 'boolean',
             'is_featured' => 'boolean',
+            'latitude' => 'float',
+            'longitude' => 'float',
         ];
     }
 
@@ -77,6 +81,28 @@ class Venue extends Model
     public function scopeApproved(Builder $query): Builder
     {
         return $query->where('is_approved', true);
+    }
+
+    /**
+     * What customers may see: approved venues whose vendor has been activated by an admin.
+     * Venues owned by admins (seed/demo) and vendors without a profile are shown only while
+     * activation is switched off in settings.
+     */
+    public function scopeLive(Builder $query): Builder
+    {
+        return $query->approved()->whereHas('owner', function (Builder $owner) {
+            $owner->where('role_id', Role::SuperAdministrator->value)
+                ->orWhereHas('vendorProfile', fn (Builder $p) => $p->where('status', VendorStatus::Active->value));
+
+            if (! setting('vendors.require_activation')) {
+                $owner->orWhereDoesntHave('vendorProfile');
+            }
+        });
+    }
+
+    public function scopeWithCoordinates(Builder $query): Builder
+    {
+        return $query->whereNotNull('latitude')->whereNotNull('longitude');
     }
 
     public function scopeSearch(Builder $query, ?string $term): Builder
@@ -131,5 +157,39 @@ class Venue extends Model
     public function hasBankDetails(): bool
     {
         return (bool) ($this->bank_name && $this->bank_account_number);
+    }
+
+    public function hasCoordinates(): bool
+    {
+        return $this->latitude !== null && $this->longitude !== null;
+    }
+
+    /** Great-circle distance in km from a point, or null when the venue has no pin. */
+    public function distanceFrom(?float $lat, ?float $lng): ?float
+    {
+        if ($lat === null || $lng === null || ! $this->hasCoordinates()) {
+            return null;
+        }
+
+        $earth = 6371;
+        $dLat = deg2rad($this->latitude - $lat);
+        $dLng = deg2rad($this->longitude - $lng);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat)) * cos(deg2rad($this->latitude)) * sin($dLng / 2) ** 2;
+
+        return round($earth * 2 * atan2(sqrt($a), sqrt(1 - $a)), 1);
+    }
+
+    public function isLive(): bool
+    {
+        return $this->is_approved && $this->owner->vendorStatus() === VendorStatus::Active;
+    }
+
+    public function mapsUrl(): string
+    {
+        if ($this->hasCoordinates()) {
+            return "https://www.google.com/maps/search/?api=1&query={$this->latitude},{$this->longitude}";
+        }
+
+        return 'https://www.google.com/maps/search/?api=1&query='.urlencode($this->name.' '.$this->address.' '.$this->city);
     }
 }

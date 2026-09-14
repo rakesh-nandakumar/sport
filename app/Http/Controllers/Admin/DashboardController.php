@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\PaymentStatus;
 use App\Enums\Role;
+use App\Enums\VendorStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityType;
 use App\Models\Booking;
 use App\Models\User;
+use App\Models\VendorProfile;
 use App\Models\Venue;
 use Illuminate\View\View;
 
@@ -19,6 +21,7 @@ class DashboardController extends Controller
             'venues' => Venue::count(),
             'pending_venues' => Venue::where('is_approved', false)->count(),
             'vendors' => User::where('role_id', Role::Vendor)->count(),
+            'pending_vendors' => VendorProfile::where('status', VendorStatus::Pending->value)->count(),
             'customers' => User::where('role_id', Role::Customer)->count(),
             'bookings' => Booking::count(),
             'bookings_today' => Booking::whereDate('created_at', today())->count(),

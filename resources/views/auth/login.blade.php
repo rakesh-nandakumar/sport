@@ -1,11 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Login · Sportee')
+@section('title', 'Login · EntryPoint.lk')
 
 @section('content')
 <section class="mx-auto max-w-md px-4 pb-16">
     <div class="rounded-3xl border border-gray-200 bg-white p-8 shadow-lg">
-        <h1 class="display text-4xl text-gray-900">Welcome back</h1>
-        <p class="text-sm text-gray-500">Log in to book, manage your venue, or check your alerts.</p>
+        <img src="{{ asset('android-chrome-192x192.png') }}" alt="EntryPoint.lk" class="mx-auto mb-6 h-14 w-14 rounded-2xl">
+        <h1 class="display text-4xl text-gray-900 text-center">Welcome back</h1>
+        <p class="text-sm text-gray-500 text-center">Log in to book, manage your venue, or check your alerts.</p>
 
         <form method="POST" action="{{ route('login') }}" class="mt-6 space-y-4">
             @csrf
@@ -27,7 +28,7 @@
 
         <div class="mt-6 rounded-xl bg-gray-50 p-4 text-xs text-gray-500">
             <p class="font-semibold text-gray-700">Demo accounts (password: <code>password</code>)</p>
-            <p>Admin: admin@sportee.lk · Vendor: vendor@sportee.lk · Customer: customer@sportee.lk</p>
+            <p>Admin: admin@entrypoint.lk · Vendor: vendor@entrypoint.lk · Customer: customer@entrypoint.lk</p>
         </div>
     </div>
 </section>

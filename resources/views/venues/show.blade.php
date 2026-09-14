@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', $venue->name.' · Sportee')
+@section('title', $venue->name.' · EntryPoint.lk')
 @section('main-class', '')
 
 @section('content')
@@ -13,7 +13,7 @@
             @endforeach
         </div>
         <h1 class="display mt-3 text-5xl md:text-7xl">{{ $venue->name }}</h1>
-        <p class="mt-1 text-gray-200"><i class="fa-solid fa-location-dot mr-1"></i>{{ $venue->address }}, {{ $venue->city }}</p>
+        <p class="mt-1 text-gray-200"><i class="fa-solid fa-location-dot mr-1"></i>{{ $venue->address }}, {{ $venue->city }}@if($venue->distance_km !== null) <span class="ml-2 rounded-full bg-white/15 px-2 py-0.5 text-xs">{{ $venue->distance_km }} km from {{ $location['label'] }}</span>@endif</p>
         <div class="mt-3 flex flex-wrap items-center gap-4 text-sm text-gray-200">
             @if($venue->reviews->count())
                 <span><i class="fa-solid fa-star text-amber-400"></i> {{ $venue->averageRating() }} · {{ $venue->reviews->count() }} reviews</span>
@@ -30,7 +30,7 @@
     <div>
         {{-- Services --}}
         <h2 class="display text-4xl text-gray-900">What you can book</h2>
-        <p class="text-gray-500">Choose a service to build your booking. Prices are per block; the exact total is calculated as you pick your time.</p>
+        <p class="text-gray-500">Every rate and today's open start times are shown below. Pick a service to choose your date, time and duration — the exact total is calculated as you go.</p>
 
         @forelse($servicesByActivity as $activity => $services)
             <div class="mt-8">
@@ -39,36 +39,7 @@
                 </h3>
                 <div class="mt-3 grid gap-4 sm:grid-cols-2">
                     @foreach($services as $service)
-                        <div class="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                            @if($service->image)
-                                <img src="{{ $service->imageUrl() }}" alt="" class="h-36 w-full object-cover">
-                            @endif
-                            <div class="flex flex-1 flex-col p-4">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <h4 class="font-semibold text-gray-900">{{ $service->name }}</h4>
-                                        <p class="text-xs text-gray-500">{{ $service->slotLabel() }} blocks · min {{ minutes_label($service->min_slots * $service->slot_minutes) }}@if($service->max_players) · up to {{ $service->max_players }} players @endif</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-xs text-gray-500">from</p>
-                                        <p class="font-semibold text-gray-900">{{ lkr($service->priceFrom()) }}</p>
-                                        <p class="text-[11px] text-gray-400">per {{ $service->slotLabel() }}</p>
-                                    </div>
-                                </div>
-                                @if($service->description)
-                                    <p class="mt-2 text-sm text-gray-600 line-clamp-2">{{ $service->description }}</p>
-                                @endif
-                                <div class="mt-3 flex flex-wrap gap-1.5">
-                                    @foreach($service->options as $opt)
-                                        <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">{{ $opt->name }} · {{ lkr($opt->price_per_slot) }}</span>
-                                    @endforeach
-                                </div>
-                                @if($service->games->isNotEmpty())
-                                    <p class="mt-2 text-xs text-gray-500"><i class="fa-solid fa-gamepad mr-1"></i>{{ $service->games->pluck('name')->take(4)->join(', ') }}{{ $service->games->count() > 4 ? ' +'.($service->games->count() - 4).' more' : '' }}</p>
-                                @endif
-                                <a href="{{ route('booking.build', $service) }}" class="btn-brand mt-4 w-full">Book now</a>
-                            </div>
-                        </div>
+                        @include('venues._service-card')
                     @endforeach
                 </div>
             </div>
@@ -133,7 +104,7 @@
             <p class="mt-3 text-gray-600">{{ $venue->address }}<br>{{ $venue->city }}@if($venue->district), {{ $venue->district }}@endif</p>
             <p class="mt-2"><a href="tel:{{ $venue->phone }}" class="text-brand hover:underline">{{ $venue->phone }}</a></p>
             @if($venue->email)<p><a href="mailto:{{ $venue->email }}" class="text-brand hover:underline">{{ $venue->email }}</a></p>@endif
-            <a href="https://www.google.com/maps/search/?api=1&query={{ urlencode($venue->name.' '.$venue->address.' '.$venue->city) }}" target="_blank" rel="noopener" class="btn-ghost mt-4 w-full">Open in Google Maps</a>
+            <a href="{{ $venue->mapsUrl() }}" target="_blank" rel="noopener" class="btn-ghost mt-4 w-full">Open in Google Maps</a>
         </div>
     </aside>
 </section>

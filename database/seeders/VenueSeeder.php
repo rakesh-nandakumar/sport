@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\Role;
+use App\Enums\VendorStatus;
 use App\Models\ActivityType;
 use App\Models\Game;
 use App\Models\Service;
@@ -22,16 +23,16 @@ class VenueSeeder extends Seeder
         $xbox = Game::where('platform', 'Xbox Series X')->pluck('id', 'name');
 
         $vendors = [
-            'vendor@sportee.lk' => ['Dinesh Perera', '0771234567'],
-            'ciel@sportee.lk' => ['Ruwan Fernando', '0312234567'],
-            'misfits@sportee.lk' => ['Shanaka Silva', '0712345678'],
-            'sportsworld@sportee.lk' => ['Nadeesha Jayawardena', '0112825555'],
-            'unisports@sportee.lk' => ['Kasun Wickramasinghe', '0112650301'],
-            'levelup@sportee.lk' => ['Tharindu Bandara', '0812223344'],
-            'strikezone@sportee.lk' => ['Ayesha Rahman', '0112575757'],
-            'galle@sportee.lk' => ['Roshan de Silva', '0912245678'],
-            'aqua@sportee.lk' => ['Malith Gunasekara', '0112930303'],
-            'jaffna@sportee.lk' => ['Thavaraj Kumar', '0212223355'],
+            'vendor@entrypoint.lk' => ['Dinesh Perera', '0771234567'],
+            'ciel@entrypoint.lk' => ['Ruwan Fernando', '0312234567'],
+            'misfits@entrypoint.lk' => ['Shanaka Silva', '0712345678'],
+            'sportsworld@entrypoint.lk' => ['Nadeesha Jayawardena', '0112825555'],
+            'unisports@entrypoint.lk' => ['Kasun Wickramasinghe', '0112650301'],
+            'levelup@entrypoint.lk' => ['Tharindu Bandara', '0812223344'],
+            'strikezone@entrypoint.lk' => ['Ayesha Rahman', '0112575757'],
+            'galle@entrypoint.lk' => ['Roshan de Silva', '0912245678'],
+            'aqua@entrypoint.lk' => ['Malith Gunasekara', '0112930303'],
+            'jaffna@entrypoint.lk' => ['Thavaraj Kumar', '0212223355'],
         ];
         $owners = [];
         foreach ($vendors as $email => [$name, $phone]) {
@@ -44,7 +45,7 @@ class VenueSeeder extends Seeder
 
         $venues = [
             [
-                'owner' => 'vendor@sportee.lk', 'name' => 'CR7 Futsal Arena', 'city' => 'Colombo 05', 'district' => 'Colombo',
+                'owner' => 'vendor@entrypoint.lk', 'name' => 'CR7 Futsal Arena', 'geo' => [6.8834, 79.866, '00500'], 'city' => 'Colombo 05', 'district' => 'Colombo',
                 'address' => '48 Havelock Road, Havelock Town', 'phone' => '0112589100', 'email' => 'bookings@cr7arena.lk', 'cover' => '/images/CR7.png',
                 'tagline' => 'Colombo\'s favourite floodlit 5-a-side turf, open till midnight',
                 'description' => 'Two FIFA-grade artificial turf courts under full floodlights, with covered spectator stands, changing rooms and a juice bar. Bibs and match balls included with every booking. Ideal for corporate leagues, birthday tournaments and late-night kick-abouts.',
@@ -61,7 +62,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'vendor@sportee.lk', 'name' => 'Club Fusion Gaming Lounge', 'city' => 'Rajagiriya', 'district' => 'Colombo',
+                'owner' => 'vendor@entrypoint.lk', 'name' => 'Club Fusion Gaming Lounge', 'geo' => [6.9095, 79.8935, '10100'], 'city' => 'Rajagiriya', 'district' => 'Colombo',
                 'address' => '212/1 Kotte Road, Rajagiriya', 'phone' => '0112889977', 'email' => 'play@clubfusion.lk', 'cover' => '/images/club-fusion.png',
                 'tagline' => 'PS5 pods, esports PCs and a VR corner — air-conditioned and open late',
                 'description' => 'Twelve PS5 stations on 55" 4K screens, six RTX gaming PCs, a private VIP pod for four and a Meta Quest VR corner. Snacks, energy drinks and controller hire available. Tournaments every Friday night.',
@@ -81,7 +82,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'ciel@sportee.lk', 'name' => 'Ciel Sports Complex', 'city' => 'Negombo', 'district' => 'Gampaha',
+                'owner' => 'ciel@entrypoint.lk', 'name' => 'Ciel Sports Complex', 'geo' => [7.265, 79.856, '11540'], 'city' => 'Negombo', 'district' => 'Gampaha',
                 'address' => 'Chilaw Road, Kochchikade', 'phone' => '0312277888', 'email' => 'info@cielsports.lk', 'cover' => '/images/ciel.jpg',
                 'tagline' => 'Negombo\'s all-in-one indoor complex: futsal, badminton and cricket nets',
                 'description' => 'A 30,000 sq ft indoor complex on the Chilaw road with a futsal court, four badminton courts and two cricket practice nets. Fully covered, so play on through the monsoon.',
@@ -98,7 +99,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'misfits@sportee.lk', 'name' => 'Misfits Arena', 'city' => 'Dehiwala', 'district' => 'Colombo',
+                'owner' => 'misfits@entrypoint.lk', 'name' => 'Misfits Arena', 'geo' => [6.851, 79.87, '10350'], 'city' => 'Dehiwala', 'district' => 'Colombo',
                 'address' => '15 Hill Street, Dehiwala', 'phone' => '0777123456', 'email' => 'hello@misfitsarena.lk', 'cover' => '/images/misfits-arena.png',
                 'tagline' => 'Indoor paintball, laser tag and a rooftop basketball court',
                 'description' => "Colombo's only indoor paintball arena with themed obstacle rooms, plus a full-size rooftop basketball court under lights. Gear, mask, marker and 100 paintballs included in every session.",
@@ -114,7 +115,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'sportsworld@sportee.lk', 'name' => 'Sports World Nugegoda', 'city' => 'Nugegoda', 'district' => 'Colombo',
+                'owner' => 'sportsworld@entrypoint.lk', 'name' => 'Sports World Nugegoda', 'geo' => [6.865, 79.899, '10250'], 'city' => 'Nugegoda', 'district' => 'Colombo',
                 'address' => '120 High Level Road, Nugegoda', 'phone' => '0112825555', 'email' => null, 'cover' => '/images/sports-world.jpg',
                 'tagline' => 'Cricket nets with bowling machines, plus badminton and table tennis',
                 'description' => 'Four cricket nets (two with Leverage bowling machines), three badminton courts and four table-tennis tables under one roof. Coaching available on request.',
@@ -131,7 +132,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'unisports@sportee.lk', 'name' => 'Uni Sports Center', 'city' => 'Moratuwa', 'district' => 'Colombo',
+                'owner' => 'unisports@entrypoint.lk', 'name' => 'Uni Sports Center', 'geo' => [6.796, 79.901, '10400'], 'city' => 'Moratuwa', 'district' => 'Colombo',
                 'address' => 'Katubedda Junction, Moratuwa', 'phone' => '0112650301', 'email' => 'sports@unicenter.lk', 'cover' => '/images/uni-sports-center.png',
                 'tagline' => 'Campus-side multi-sport centre with a 25m pool',
                 'description' => 'Futsal court, indoor basketball, four badminton courts and a 25-metre six-lane pool. Student discounts on weekdays before 5pm.',
@@ -150,7 +151,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'levelup@sportee.lk', 'name' => 'Level Up eSports Hub', 'city' => 'Kandy', 'district' => 'Kandy',
+                'owner' => 'levelup@entrypoint.lk', 'name' => 'Level Up eSports Hub', 'geo' => [7.286, 80.626, '20000'], 'city' => 'Kandy', 'district' => 'Kandy',
                 'address' => '88 Peradeniya Road, Kandy', 'phone' => '0812223344', 'email' => 'gg@levelup.lk', 'cover' => '/images/slide1.jpeg',
                 'tagline' => 'Kandy\'s biggest console and PC gaming hub',
                 'description' => 'Ten PS5 and four Xbox Series X stations, twelve gaming PCs, streaming booth and a snack bar. Home of the Central Province FC league.',
@@ -167,7 +168,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'misfits@sportee.lk', 'name' => 'Colombo Paintball Park', 'city' => 'Battaramulla', 'district' => 'Colombo',
+                'owner' => 'misfits@entrypoint.lk', 'name' => 'Colombo Paintball Park', 'geo' => [6.889, 79.935, '10120'], 'city' => 'Battaramulla', 'district' => 'Colombo',
                 'address' => 'Diyawanna Gardens, Pelawatte', 'phone' => '0765554433', 'email' => 'book@colombopaintball.lk', 'cover' => '/images/parallax2.jpg',
                 'tagline' => 'Outdoor jungle-style paintball on 3 acres by the lake',
                 'description' => 'Three outdoor fields — Village, Bunker and Jungle — with bridges, towers and bunkers. Camo overalls, masks and markers included. Corporate team-building packages available.',
@@ -180,7 +181,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'strikezone@sportee.lk', 'name' => 'Strike Zone Bowling', 'city' => 'Colombo 03', 'district' => 'Colombo',
+                'owner' => 'strikezone@entrypoint.lk', 'name' => 'Strike Zone Bowling', 'geo' => [6.911, 79.852, '00300'], 'city' => 'Colombo 03', 'district' => 'Colombo',
                 'address' => 'Level 5, Liberty Plaza, Kollupitiya', 'phone' => '0112575757', 'email' => 'lanes@strikezone.lk', 'cover' => '/images/parallax5.jpg',
                 'tagline' => 'Eight glow-in-the-dark ten-pin lanes in the heart of Colombo',
                 'description' => 'Eight Brunswick lanes with bumpers for kids, cosmic bowling after 8pm, shoe hire included. Birthday and corporate packages available.',
@@ -194,7 +195,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'sportsworld@sportee.lk', 'name' => 'Smash Badminton Academy', 'city' => 'Kottawa', 'district' => 'Colombo',
+                'owner' => 'sportsworld@entrypoint.lk', 'name' => 'Smash Badminton Academy', 'geo' => [6.841, 79.964, '10230'], 'city' => 'Kottawa', 'district' => 'Colombo',
                 'address' => 'Makumbura, Kottawa', 'phone' => '0112783939', 'email' => null, 'cover' => '/images/imgslide1.avif',
                 'tagline' => 'Six wooden courts, coaching and a pro shop',
                 'description' => 'Six BWF-standard wooden sprung courts with Yonex mats, a pro shop for stringing and a café. Coaching for juniors every weekend.',
@@ -207,7 +208,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'galle@sportee.lk', 'name' => 'Galle Fort Turf', 'city' => 'Galle', 'district' => 'Galle',
+                'owner' => 'galle@entrypoint.lk', 'name' => 'Galle Fort Turf', 'geo' => [6.034, 80.238, '80000'], 'city' => 'Galle', 'district' => 'Galle',
                 'address' => 'Matara Road, Katugoda, Galle', 'phone' => '0912245678', 'email' => null, 'cover' => '/images/parallax3.jpg',
                 'tagline' => 'Sea-breeze futsal and cricket nets in the south',
                 'description' => 'Floodlit futsal turf and two cricket nets five minutes from the Fort. Popular with hotel guests and local leagues.',
@@ -222,7 +223,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'aqua@sportee.lk', 'name' => 'Aqua Lanka Swim Centre', 'city' => 'Wattala', 'district' => 'Gampaha',
+                'owner' => 'aqua@entrypoint.lk', 'name' => 'Aqua Lanka Swim Centre', 'geo' => [6.99, 79.892, '11300'], 'city' => 'Wattala', 'district' => 'Gampaha',
                 'address' => 'Negombo Road, Wattala', 'phone' => '0112930303', 'email' => 'swim@aqualanka.lk', 'cover' => '/images/imgslide2.avif',
                 'tagline' => '50m Olympic pool lanes and aqua-fitness classes',
                 'description' => 'Eight-lane 50-metre pool with electronic timing, plus a heated learner pool. Lane hire for squads and individuals, aqua-aerobics mornings.',
@@ -237,7 +238,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'aqua@sportee.lk', 'name' => 'Zen Yoga & Fitness Studio', 'city' => 'Colombo 07', 'district' => 'Colombo',
+                'owner' => 'aqua@entrypoint.lk', 'name' => 'Zen Yoga & Fitness Studio', 'geo' => [6.909, 79.866, '00700'], 'city' => 'Colombo 07', 'district' => 'Colombo',
                 'address' => '31 Horton Place, Cinnamon Gardens', 'phone' => '0112696969', 'email' => 'namaste@zenstudio.lk', 'cover' => '/images/imgslide3.avif',
                 'tagline' => 'Boutique yoga, pilates and HIIT studio hire',
                 'description' => 'Two light-filled studios with sprung floors, mats, blocks and reformers. Book a spot in a class or hire the whole studio for your own group.',
@@ -250,7 +251,7 @@ class VenueSeeder extends Seeder
                 ],
             ],
             [
-                'owner' => 'jaffna@sportee.lk', 'name' => 'Jaffna Sports Club Courts', 'city' => 'Jaffna', 'district' => 'Jaffna',
+                'owner' => 'jaffna@entrypoint.lk', 'name' => 'Jaffna Sports Club Courts', 'geo' => [9.665, 80.025, '40000'], 'city' => 'Jaffna', 'district' => 'Jaffna',
                 'address' => 'Kandy Road, Jaffna', 'phone' => '0212223355', 'email' => null, 'cover' => '/images/slide2.jpeg',
                 'tagline' => 'Tennis, badminton and table tennis in the north',
                 'description' => 'Two floodlit hard tennis courts, an indoor badminton hall and a table-tennis room. Racquet hire and coaching available.',
@@ -268,7 +269,34 @@ class VenueSeeder extends Seeder
             ],
         ];
 
+        // Every seeded vendor is an already-verified business, so their venues are live immediately.
+        $admin = User::where('role_id', Role::SuperAdministrator)->first();
         foreach ($venues as $data) {
+            $owner = $owners[$data['owner']];
+            if (! $owner->vendorProfile()->exists()) {
+                $owner->vendorProfile()->create([
+                    'business_name' => $data['name'],
+                    'business_type' => str_contains($data['name'], 'Club') ? 'club' : 'private_limited',
+                    'registration_number' => 'PV'.rand(100000, 999999),
+                    'owner_nic' => rand(199000000000, 199999999999),
+                    'contact_person' => $owner->name,
+                    'contact_phone' => $data['phone'],
+                    'business_email' => $data['email'] ?? $owner->email,
+                    'address_line1' => $data['address'],
+                    'city' => $data['city'],
+                    'district' => $data['district'],
+                    'postal_code' => $data['geo'][2],
+                    'latitude' => $data['geo'][0],
+                    'longitude' => $data['geo'][1],
+                    'description' => $data['description'],
+                    'years_operating' => rand(2, 12),
+                    'status' => VendorStatus::Active,
+                    'reviewed_by' => $admin?->id,
+                    'reviewed_at' => now()->subMonths(rand(1, 18)),
+                    'terms_accepted_at' => now()->subMonths(rand(1, 18)),
+                ]);
+            }
+
             $venue = Venue::updateOrCreate(['name' => $data['name']], [
                 'user_id' => $owners[$data['owner']]->id,
                 'tagline' => $data['tagline'],
@@ -276,6 +304,9 @@ class VenueSeeder extends Seeder
                 'address' => $data['address'],
                 'city' => $data['city'],
                 'district' => $data['district'],
+                'postal_code' => $data['geo'][2],
+                'latitude' => $data['geo'][0],
+                'longitude' => $data['geo'][1],
                 'phone' => $data['phone'],
                 'email' => $data['email'],
                 'cover_image' => $data['cover'],

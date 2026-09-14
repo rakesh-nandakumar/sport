@@ -6,6 +6,7 @@ use App\Enums\BookingStatus;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Services\BookingService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class DashboardController extends Controller
 {
     public function index(Request $request): View
     {
+        app(BookingService::class)->expireStaleHolds();
         $venueIds = $request->user()->venues()->pluck('id');
         $base = Booking::whereIn('venue_id', $venueIds);
 
@@ -34,8 +36,20 @@ class DashboardController extends Controller
             ->get();
 
         $venues = $request->user()->venues()->withCount('services')->get();
+        $vendorStatus = $request->user()->vendorStatus();
+        $profile = $request->user()->vendorProfile;
 
-        return view('vendor.dashboard', compact('stats', 'upcoming', 'venues'));
+        // Transfers the vendor must verify soon, most urgent first.
+        $expiringHolds = (clone $base)->active()
+            ->whereNotNull('hold_expires_at')
+            ->whereNull('vendor_confirmed_at')
+            ->where('payment_status', PaymentStatus::PendingVerification)
+            ->with(['service', 'payments'])
+            ->orderBy('hold_expires_at')
+            ->take(5)
+            ->get();
+
+        return view('vendor.dashboard', compact('stats', 'upcoming', 'venues', 'vendorStatus', 'profile', 'expiringHolds'));
     }
 
     /** FullCalendar feed for all the vendor's bookings. */

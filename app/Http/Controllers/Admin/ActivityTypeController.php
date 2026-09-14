@@ -64,10 +64,23 @@ class ActivityTypeController extends Controller
             'default_slot_minutes' => ['required', 'integer', 'min:15', 'max:480'],
             'is_featured' => ['nullable', 'boolean'],
             'sort_order' => ['required', 'integer', 'min:0', 'max:999'],
+            'image_upload' => ['nullable', 'image', 'max:4096'],
+            'image_url' => ['nullable', 'string', 'max:500'],
+            'remove_image' => ['nullable', 'boolean'],
         ]);
 
         $data['requires_game'] = (bool) ($data['requires_game'] ?? false);
         $data['is_featured'] = (bool) ($data['is_featured'] ?? false);
+
+        // Background photo for the browse tiles: an upload wins over a pasted URL/path.
+        if ($request->hasFile('image_upload')) {
+            $data['image'] = $request->file('image_upload')->store('activity-types', 'public');
+        } elseif (! empty($data['image_url'])) {
+            $data['image'] = $data['image_url'];
+        } elseif (! empty($data['remove_image'])) {
+            $data['image'] = null;
+        }
+        unset($data['image_upload'], $data['image_url'], $data['remove_image']);
 
         return $data;
     }

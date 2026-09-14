@@ -32,8 +32,9 @@ class Payment extends Model
         return $this->belongsTo(User::class, 'verified_by');
     }
 
+    /** Signed-in route that streams the slip from the private disk (customer, venue owner, admin only). */
     public function proofUrl(): ?string
     {
-        return $this->proof_path ? asset('storage/'.$this->proof_path) : null;
+        return $this->proof_path ? route('bookings.proof.show', [$this->booking_id ? $this->booking : null, $this]) : null;
     }
 }

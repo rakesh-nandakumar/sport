@@ -60,9 +60,29 @@ enum PaymentMethod: string
         };
     }
 
-    public function isAvailable(): bool
+    /**
+     * Methods with a working implementation. Online gateways stay false until their SDK/callback is wired
+     * up, so a super admin cannot accidentally expose a method that can't take money.
+     */
+    public function isIntegrated(): bool
     {
         return in_array($this, [self::PayAtVenue, self::BankTransfer], true);
+    }
+
+    /** Integrated AND switched on in the super-admin site settings. */
+    public function isAvailable(): bool
+    {
+        return $this->isIntegrated() && in_array($this->value, (array) setting('payments.enabled'), true);
+    }
+
+    /** Short status text for the checkout modal and admin settings. */
+    public function availabilityLabel(): string
+    {
+        return match (true) {
+            ! $this->isIntegrated() => 'Coming soon',
+            ! $this->isAvailable() => 'Temporarily off',
+            default => 'Available',
+        };
     }
 
     public function isOnlineGateway(): bool

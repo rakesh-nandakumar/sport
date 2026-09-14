@@ -14,7 +14,10 @@
         @foreach($types as $t)
             <tr>
                 <td class="text-muted">{{ $t->sort_order }}</td>
-                <td><span class="badge me-2" style="background: {{ $t->color }}"><i class="{{ $t->icon }}"></i></span><strong>{{ $t->name }}</strong><div class="small text-muted">{{ $t->slug }}</div></td>
+                <td class="d-flex align-items-center gap-2">
+                    @if($t->imageUrl())<img src="{{ $t->imageUrl() }}" alt="" class="rounded" style="width:56px;height:40px;object-fit:cover">@else<span class="badge" style="background: {{ $t->color }};width:56px;height:40px;display:grid;place-items:center;font-size:1rem"><i class="{{ $t->icon }}"></i></span>@endif
+                    <div><strong>{{ $t->name }}</strong><div class="small text-muted">{{ $t->slug }}</div></div>
+                </td>
                 <td>{{ $t->unit_label }}</td><td>{{ $t->default_slot_minutes }} min</td>
                 <td>{{ $t->requires_game ? 'Yes' : '—' }}</td><td>{{ $t->games_count }}</td><td>{{ $t->services_count }}</td>
                 <td>{{ $t->is_featured ? '★' : '—' }}</td>

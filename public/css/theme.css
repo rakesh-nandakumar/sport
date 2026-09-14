@@ -1,7 +1,37 @@
-/* Sportee additions layered on top of styles.css */
+/* EntryPoint.lk additions layered on top of styles.css */
 
 .head::before {
     background: rgba(0, 0, 0, .55);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.brand-logo {
+    height: 28px;
+    width: auto;
+    display: block;
+}
+
+.footer-logo {
+    height: 42px;
+    width: auto;
+    max-width: 80%;
+    margin: 0 auto;
+    display: block;
+}
+
+@media (max-width: 480px) {
+    .brand-logo {
+        height: 22px;
+    }
+
+    .footer-logo {
+        height: 30px;
+    }
 }
 
 .navbar {
@@ -215,4 +245,22 @@
     }
 
     .navbar form { transform: none; opacity: 1; }
+}
+
+/* Activity photo tiles on the home page */
+.activity-tile {
+    background: #0f172a;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
+    transition: transform .25s, box-shadow .25s;
+}
+.activity-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 32px -12px rgba(15, 23, 42, .45);
+}
+.activity-tile::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 4px;
+    background: var(--tile-color, #ef4444);
 }

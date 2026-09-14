@@ -1,8 +1,7 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Unverified bank-transfer holds are released automatically once their window closes.
+// Production needs `php artisan schedule:run` in cron (or `schedule:work`) for this to fire.
+Schedule::command('bookings:expire-holds')->everyMinute()->withoutOverlapping();

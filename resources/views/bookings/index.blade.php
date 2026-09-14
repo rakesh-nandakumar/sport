@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'My bookings · Sportee')
+@section('title', 'My bookings · EntryPoint.lk')
 
 @section('content')
 <section class="mx-auto max-w-4xl px-4 pb-16">

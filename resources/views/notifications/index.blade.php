@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Notifications · Sportee')
+@section('title', 'Notifications · EntryPoint.lk')
 
 @section('content')
 <section class="mx-auto max-w-3xl px-4 pb-16">

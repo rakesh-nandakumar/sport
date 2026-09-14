@@ -7,12 +7,11 @@ use App\Models\Venue;
 use App\Models\VenueHour;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class VenueController extends Controller
 {
-    public const AMENITIES = ['Parking', 'Changing rooms', 'Showers', 'Cafeteria', 'Air conditioning', 'Floodlights', 'Equipment rental', 'Wi-Fi', 'First aid', 'Spectator seating'];
-
     public function index(Request $request): View
     {
         return view('vendor.venues.index', [
@@ -23,9 +22,10 @@ class VenueController extends Controller
     public function create(): View
     {
         return view('vendor.venues.form', [
-            'venue' => new Venue(['city' => 'Colombo']),
+            'venue' => new Venue($this->defaultsFromProfile()),
             'hours' => collect(range(0, 6))->mapWithKeys(fn ($d) => [$d => ['opens_at' => '08:00', 'closes_at' => '22:00', 'is_closed' => false]]),
-            'amenities' => self::AMENITIES,
+            'amenities' => setting('venues.amenities'),
+            'districts' => array_keys(config('entrypoint.districts')),
         ]);
     }
 
@@ -33,7 +33,9 @@ class VenueController extends Controller
     {
         $data = $this->validated($request);
         $data['user_id'] = $request->user()->id;
-        $data['is_approved'] = true; // auto-approve for now; admins can un-approve from the admin panel
+        // Vendor activation is the main gate (Venue::scopeLive); a super admin can additionally require
+        // per-venue approval from Site settings.
+        $data['is_approved'] = ! setting('venues.require_approval') || $request->user()->isAdmin();
 
         if ($request->hasFile('cover')) {
             $data['cover_image'] = $request->file('cover')->store('venues', 'public');
@@ -43,7 +45,9 @@ class VenueController extends Controller
         $this->syncHours($venue, $request->input('hours', []));
 
         return redirect()->route('vendor.venues.services.index', $venue)
-            ->with('message', 'Venue created. Now add the services customers can book.');
+            ->with('message', $venue->is_approved
+                ? 'Venue created. Now add the services customers can book.'
+                : 'Venue created and sent for approval. Add the services customers can book meanwhile.');
     }
 
     public function edit(Request $request, Venue $venue): View
@@ -62,7 +66,8 @@ class VenueController extends Controller
                     'is_closed' => (bool) $h?->is_closed,
                 ]];
             }),
-            'amenities' => self::AMENITIES,
+            'amenities' => setting('venues.amenities'),
+            'districts' => array_keys(config('entrypoint.districts')),
         ]);
     }
 
@@ -97,7 +102,10 @@ class VenueController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'address' => ['required', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:80'],
-            'district' => ['nullable', 'string', 'max:80'],
+            'district' => ['required', Rule::in(array_keys(config('entrypoint.districts')))],
+            'postal_code' => ['nullable', 'digits:5'],
+            'latitude' => ['nullable', 'numeric', 'between:5.5,10.5', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:79,82.5', 'required_with:latitude'],
             'phone' => ['required', 'regex:/^0\d{9}$/'],
             'email' => ['nullable', 'email'],
             'website' => ['nullable', 'url'],
@@ -114,12 +122,39 @@ class VenueController extends Controller
             'hours.*.is_closed' => ['nullable', 'boolean'],
         ], [
             'phone.regex' => 'Enter a valid 10-digit number, e.g. 0112345678.',
+            'latitude.between' => 'The map pin must be inside Sri Lanka.',
+            'longitude.between' => 'The map pin must be inside Sri Lanka.',
         ]);
 
         unset($data['cover'], $data['hours']);
         $data['amenities'] = array_values($data['amenities'] ?? []);
+        $data['latitude'] = $data['latitude'] ?? null;
+        $data['longitude'] = $data['longitude'] ?? null;
 
         return $data;
+    }
+
+    /** Pre-fill a new venue from the vendor's application so they don't retype the address. */
+    protected function defaultsFromProfile(): array
+    {
+        $profile = auth()->user()->vendorProfile;
+        if (! $profile) {
+            return ['city' => 'Colombo', 'district' => 'Colombo'];
+        }
+
+        return [
+            'name' => $profile->business_name,
+            'address' => trim($profile->address_line1.($profile->address_line2 ? ', '.$profile->address_line2 : '')),
+            'city' => $profile->city,
+            'district' => $profile->district,
+            'postal_code' => $profile->postal_code,
+            'latitude' => $profile->latitude,
+            'longitude' => $profile->longitude,
+            'phone' => $profile->contact_phone,
+            'email' => $profile->business_email,
+            'website' => $profile->website,
+            'description' => $profile->description,
+        ];
     }
 
     protected function syncHours(Venue $venue, array $hours): void

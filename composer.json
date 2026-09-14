@@ -1,8 +1,8 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "sportee/sportee",
+    "name": "entrypoint-lk/entrypoint-lk",
     "type": "project",
-    "description": "Sportee - indoor sports booking platform",
+    "description": "EntryPoint.lk - multi-vendor sports & activity booking marketplace",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {

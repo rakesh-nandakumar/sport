@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Venues · Sportee')
+@section('title', 'Venues · EntryPoint.lk')
 
 @section('content')
 <section class="mx-auto max-w-6xl px-4 pb-16">
@@ -10,7 +10,9 @@
         </div>
     </div>
 
-    <form method="GET" class="mt-6 grid gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm sm:grid-cols-[1fr_1fr_1fr_auto]">
+    <div class="mt-6"><x-location-bar :location="$location" /></div>
+
+    <form method="GET" class="mt-4 grid gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm sm:grid-cols-[1fr_1fr_1fr_auto_auto]">
         <label class="flex items-center gap-2 rounded-xl px-3 py-2">
             <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
             <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Venue or service name" class="w-full text-sm outline-none">
@@ -33,14 +35,23 @@
                 @endforeach
             </select>
         </label>
+        <label class="flex items-center gap-2 rounded-xl px-3 py-2 sm:border-l border-gray-200">
+            <i class="fa-solid fa-arrow-down-wide-short text-gray-400"></i>
+            <select name="sort" class="w-full bg-transparent text-sm outline-none">
+                @if($location)<option value="nearest" @selected($sort === 'nearest')>Nearest first</option>@endif
+                <option value="featured" @selected($sort === 'featured')>Featured</option>
+                <option value="rating" @selected($sort === 'rating')>Top rated</option>
+                <option value="name" @selected($sort === 'name')>Name A–Z</option>
+            </select>
+        </label>
         <button class="btn-brand !rounded-xl">Filter</button>
     </form>
 
     <div class="scroll-row mt-4">
-        <a href="{{ route('venues.index', array_filter(['q' => $filters['q'] ?? null, 'city' => $filters['city'] ?? null])) }}"
+        <a href="{{ route('venues.index', array_filter(['q' => $filters['q'] ?? null, 'city' => $filters['city'] ?? null, 'sort' => $sort])) }}"
            class="chip px-4 py-2 text-sm font-medium {{ empty($filters['activity']) ? 'is-selected' : '' }}">All</a>
         @foreach($activityTypes as $type)
-            <a href="{{ route('venues.index', array_filter(['q' => $filters['q'] ?? null, 'city' => $filters['city'] ?? null, 'activity' => $type->slug])) }}"
+            <a href="{{ route('venues.index', array_filter(['q' => $filters['q'] ?? null, 'city' => $filters['city'] ?? null, 'activity' => $type->slug, 'sort' => $sort])) }}"
                class="chip px-4 py-2 text-sm font-medium {{ ($filters['activity'] ?? '') === $type->slug ? 'is-selected' : '' }}">
                 <i class="{{ $type->icon }} mr-1" style="color: {{ $type->color }}"></i>{{ $type->name }}
             </a>

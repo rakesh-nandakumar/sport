@@ -10,14 +10,15 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        User::updateOrCreate(['email' => 'admin@sportee.lk'], [
-            'name' => 'Sportee Admin',
+        User::updateOrCreate(['email' => 'admin@entrypoint.lk'], [
+            'name' => 'EntryPoint Admin',
             'phone' => '0770000000',
             'password' => 'password',
             'role_id' => Role::SuperAdministrator,
         ]);
 
         $this->call([
+            SettingSeeder::class,
             ActivityTypeSeeder::class,
             VenueSeeder::class,
             BookingSeeder::class,

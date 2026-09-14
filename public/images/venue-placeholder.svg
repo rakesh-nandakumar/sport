@@ -4,14 +4,20 @@
       <stop offset="0" stop-color="#0f172a"/>
       <stop offset="1" stop-color="#ef4444"/>
     </linearGradient>
+    <mask id="ring-gaps">
+      <rect x="0" y="0" width="800" height="450" fill="white"/>
+      <rect x="391" y="130" width="18" height="34" fill="black"/>
+      <rect x="391" y="286" width="18" height="34" fill="black"/>
+      <rect x="316" y="216" width="34" height="18" fill="black"/>
+      <rect x="450" y="216" width="34" height="18" fill="black"/>
+    </mask>
   </defs>
   <rect width="800" height="450" fill="url(#g)"/>
-  <g fill="none" stroke="#ffffff" stroke-opacity=".25" stroke-width="3">
+  <g fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="3">
     <rect x="120" y="70" width="560" height="310" rx="8"/>
-    <line x1="400" y1="70" x2="400" y2="380"/>
-    <circle cx="400" cy="225" r="60"/>
-    <rect x="120" y="150" width="90" height="150"/>
-    <rect x="590" y="150" width="90" height="150"/>
   </g>
-  <text x="400" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="700" fill="#ffffff" fill-opacity=".85" letter-spacing="6">SPORTEE</text>
+  <g mask="url(#ring-gaps)">
+    <circle cx="400" cy="225" r="66" fill="none" stroke="#ffffff" stroke-opacity=".8" stroke-width="16"/>
+  </g>
+  <circle cx="400" cy="225" r="17" fill="#ffffff" fill-opacity=".8"/>
 </svg>

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Booking '.$booking->reference.' · Sportee')
+@section('title', 'Booking '.$booking->reference.' · EntryPoint.lk')
 
 @section('content')
 <section class="mx-auto max-w-4xl px-4 pb-16">
@@ -49,6 +49,13 @@
                             <li>Arrive a few minutes early, quote <strong>{{ $booking->reference }}</strong> and pay <strong>{{ lkr($booking->total) }}</strong> at the counter.</li>
                         </ol>
                     @elseif($booking->payment_method === \App\Enums\PaymentMethod::BankTransfer)
+                        @if($booking->isAwaitingVerification())
+                            @php($left = $booking->holdMinutesLeft())
+                            <div class="mt-3 flex items-center gap-3 rounded-xl {{ $left <= 5 ? 'bg-rose-50 text-rose-800' : 'bg-amber-50 text-amber-800' }} p-3 text-sm" x-data="{ end: {{ $booking->hold_expires_at->getTimestampMs() }}, label: '' , tick() { const s = Math.max(0, Math.round((this.end - Date.now()) / 1000)); this.label = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); if (s === 0) setTimeout(() => location.reload(), 1500); } }" x-init="tick(); setInterval(() => tick(), 1000)">
+                                <i class="fa-regular fa-clock text-lg"></i>
+                                <div><strong>Slot held for <span x-text="label">{{ $left }} min</span></strong> — the venue has until {{ $booking->hold_expires_at->format('h:i A') }} to verify your transfer, otherwise this booking expires and the slot is released. Transfer and upload your slip now.</div>
+                            </div>
+                        @endif
                         <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-gray-600">
                             <li>Transfer <strong>{{ lkr($booking->total) }}</strong> to the account below and use <strong>{{ $booking->reference }}</strong> as the remark.</li>
                             <li>Upload your slip here. The venue verifies it and your booking becomes <strong>Confirmed &amp; locked</strong>.</li>
@@ -64,7 +71,7 @@
                         </div>
                         @php($payment = $booking->payments->last())
                         @if($payment?->proof_path && $booking->payment_status !== \App\Enums\PaymentStatus::Paid)
-                            <p class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800"><i class="fa-regular fa-clock mr-1"></i>Slip uploaded {{ $payment->updated_at->diffForHumans() }}. Waiting for the venue to verify.</p>
+                            <p class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800"><i class="fa-solid fa-check mr-1"></i>Slip uploaded {{ $payment->updated_at->diffForHumans() }}@if($payment->reference) (ref {{ $payment->reference }})@endif. Waiting for the venue to verify.</p>
                         @endif
                         @if($booking->payment_status !== \App\Enums\PaymentStatus::Paid)
                             <form method="POST" action="{{ route('bookings.proof', $booking) }}" enctype="multipart/form-data" class="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
@@ -75,6 +82,12 @@
                             </form>
                         @endif
                     @endif
+                </div>
+            @elseif($booking->status === \App\Enums\BookingStatus::Expired)
+                <div class="rounded-2xl bg-gray-100 p-6 text-sm text-gray-700">
+                    <h2 class="text-lg font-semibold text-gray-900">This booking expired</h2>
+                    <p class="mt-2">The bank transfer wasn't verified within {{ setting('payments.bank_transfer_hold_minutes') }} minutes, so the slot was released for other customers. If you did transfer the money, contact the venue on {{ $booking->venue->phone }} quoting {{ $booking->reference }} — they can refund or re-book you.</p>
+                    <a href="{{ route('booking.build', $booking->service) }}" class="btn-brand mt-4">Book again</a>
                 </div>
             @elseif($booking->status === \App\Enums\BookingStatus::Bumped)
                 <div class="rounded-2xl bg-rose-50 p-6 text-sm text-rose-800">

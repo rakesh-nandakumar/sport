@@ -13,6 +13,36 @@
     </div>
 </div>
 
+@if($vendorStatus !== \App\Enums\VendorStatus::Active)
+    <div class="alert {{ $vendorStatus === \App\Enums\VendorStatus::Pending ? 'alert-warning' : 'alert-danger' }}">
+        <div class="d-flex align-items-start gap-3">
+            <i class="fa-solid {{ $vendorStatus === \App\Enums\VendorStatus::Pending ? 'fa-hourglass-half' : 'fa-ban' }} fs-4 mt-1"></i>
+            <div>
+                <strong>Account status: {{ $vendorStatus->label() }}.</strong> {{ $vendorStatus->vendorMessage() }}
+                @if($profile?->review_notes)<div class="mt-2 border-start border-3 ps-2 small">Note from EntryPoint.lk: {{ $profile->review_notes }}</div>@endif
+                <div class="small mt-2">Questions? <a href="mailto:{{ setting('site.support_email') }}" class="alert-link">{{ setting('site.support_email') }}</a> · {{ setting('site.support_phone') }}</div>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if($expiringHolds->isNotEmpty())
+    <div class="card border-warning shadow-sm mb-4">
+        <div class="card-header bg-warning-subtle fw-semibold"><i class="fa-regular fa-clock me-1"></i>Bank transfers waiting for your verification</div>
+        <div class="list-group list-group-flush">
+            @foreach($expiringHolds as $h)
+                @php($left = $h->holdMinutesLeft())
+                <a href="{{ route('vendor.bookings.show', $h) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <span><strong>{{ $h->reference }}</strong> · {{ $h->customer_name }} · {{ $h->service->name }} · {{ $h->starts_at->format('D d M, h:i A') }} · {{ lkr($h->total) }}
+                        @if($h->payments->last()?->proof_path)<span class="badge bg-success ms-1">Slip uploaded</span>@else<span class="badge bg-secondary ms-1">No slip yet</span>@endif</span>
+                    <span class="badge {{ $left <= 5 ? 'bg-danger' : 'bg-warning text-dark' }}">{{ $left }} min left</span>
+                </a>
+            @endforeach
+        </div>
+        <div class="card-footer small text-muted">If you don't verify a transfer within {{ setting('payments.bank_transfer_hold_minutes') }} minutes of the booking, it expires and the slot is released automatically.</div>
+    </div>
+@endif
+
 @if($venues->isEmpty())
     <div class="alert alert-warning">You haven't added a venue yet. <a href="{{ route('vendor.venues.create') }}" class="alert-link">Create your first venue</a> to start taking bookings.</div>
 @endif

@@ -7,7 +7,6 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\Role;
 use App\Exceptions\SlotUnavailableException;
-use App\Http\Controllers\CheckoutController;
 use App\Livewire\BookingBuilder;
 use App\Models\Booking;
 use App\Models\Service;
@@ -19,6 +18,7 @@ use Database\Seeders\ActivityTypeSeeder;
 use Database\Seeders\VenueSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -45,34 +45,97 @@ class BookingFlowTest extends TestCase
 
     public function test_public_pages_render(): void
     {
-        $this->get('/')->assertOk()->assertSee('Book any sport');
+        $this->get('/')->assertOk()->assertSee('Book any sport')->assertSee('/images/activities/futsal.jpg');
         $this->get('/venues?activity=futsal')->assertOk()->assertSee('CR7 Futsal Arena');
-        $this->get('/venues/cr7-futsal-arena')->assertOk()->assertSee('Court A (Main)');
+        $this->get('/venues/cr7-futsal-arena')->assertOk()->assertSee('Court A (Main)')->assertSee('Evening peak')->assertSee('start times open today');
         $this->get(route('booking.build', $this->court))->assertOk()->assertSeeLivewire(BookingBuilder::class);
     }
 
-    public function test_builder_prices_the_plan_and_hands_off_to_checkout(): void
+    public function test_checkout_button_opens_the_payment_modal_with_every_method(): void
     {
         $this->actingAs($this->customer);
 
         Livewire::test(BookingBuilder::class, ['service' => $this->court])
             ->call('selectDate', '2026-09-15')
-            ->call('selectTime', '18:00')
+            ->call('selectTime', '2026-09-15 18:00:00')
             ->call('incrementSlots')
             ->assertSee('2 hr')
             ->assertSee('Evening peak')
+            ->assertSet('showCheckout', false)
             ->call('checkout')
-            ->assertRedirect(route('checkout.show'));
-
-        $draft = session(CheckoutController::SESSION_KEY);
-        $this->assertSame(2, $draft['slots']);
-        $this->assertSame('2026-09-15 18:00:00', $draft['starts_at']);
-
-        $this->get(route('checkout.show'))
-            ->assertOk()
+            ->assertSet('showCheckout', true)
+            ->assertSet('paymentMethod', 'pay_at_venue')
+            ->assertSee('Complete your booking')
             ->assertSee('Pay at Venue')
+            ->assertSee('Bank Transfer')
+            ->assertSee('Debit / Credit Card')
+            ->assertSee('Koko')
+            ->assertSee('Mint Pay')
+            ->assertSee('PayEasy')
             ->assertSee('Coming soon')
             ->assertSee('Rs 12,500'); // 2 × 5,000 + 25% peak on both blocks
+    }
+
+    public function test_placing_a_pay_at_venue_booking_from_the_modal(): void
+    {
+        $this->actingAs($this->customer);
+
+        Livewire::test(BookingBuilder::class, ['service' => $this->court])
+            ->call('selectDate', '2026-09-15')
+            ->call('selectTime', '2026-09-15 10:00:00')
+            ->call('checkout')
+            ->set('customerName', 'Sahan J')
+            ->set('customerPhone', '0771234567')
+            ->set('notes', 'Bibs please')
+            ->call('placeBooking')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('bookings.show', Booking::firstOrFail()));
+
+        $booking = Booking::firstOrFail();
+        $this->assertSame(BookingStatus::Pending, $booking->status);
+        $this->assertSame(PaymentStatus::Unpaid, $booking->payment_status);
+        $this->assertSame(1, $booking->priority);
+        $this->assertNull($booking->hold_expires_at);
+        $this->assertEquals(5000, $booking->total);
+        $this->assertSame('Bibs please', $booking->notes);
+
+        $this->get(route('bookings.show', $booking))->assertOk()->assertSee($booking->reference)->assertSee('pay');
+        $this->assertCount(1, $this->customer->notifications);
+        $this->assertCount(1, $this->court->venue->owner->notifications);
+    }
+
+    public function test_bank_transfer_from_the_modal_takes_reference_and_slip_and_starts_the_hold_timer(): void
+    {
+        Storage::fake('local');
+        $this->actingAs($this->customer);
+
+        Livewire::test(BookingBuilder::class, ['service' => $this->court])
+            ->call('selectDate', '2026-09-15')
+            ->call('selectTime', '2026-09-15 10:00:00')
+            ->call('checkout')
+            ->call('selectPaymentMethod', 'bank_transfer')
+            ->assertSee('Commercial Bank')
+            ->assertSee('20-minute hold')
+            ->set('bankReference', 'TXN-777')
+            ->set('proof', UploadedFile::fake()->image('slip.jpg'))
+            ->call('placeBooking')
+            ->assertHasNoErrors();
+
+        $booking = Booking::firstOrFail();
+        $this->assertSame(PaymentMethod::BankTransfer, $booking->payment_method);
+        $this->assertSame(PaymentStatus::PendingVerification, $booking->payment_status);
+        $this->assertSame(2, $booking->priority);
+        $this->assertEquals(now()->addMinutes(20)->toDateTimeString(), $booking->hold_expires_at->toDateTimeString());
+        $payment = $booking->payments->last();
+        $this->assertSame('TXN-777', $payment->reference);
+        Storage::disk('local')->assertExists($payment->proof_path);
+
+        // The slip is private: customer and venue owner can open it, a stranger cannot.
+        $this->get(route('bookings.proof.show', [$booking, $payment]))->assertOk();
+        $this->actingAs($this->court->venue->owner)->get(route('bookings.proof.show', [$booking, $payment]))->assertOk();
+        $this->actingAs(User::factory()->create(['role_id' => Role::Customer]))->get(route('bookings.proof.show', [$booking, $payment]))->assertForbidden();
+
+        $this->actingAs($this->customer)->get(route('bookings.show', $booking))->assertOk()->assertSee('Slot held for')->assertSee('TXN-777');
     }
 
     public function test_builder_requires_a_game_for_gaming_services(): void
@@ -81,55 +144,37 @@ class BookingFlowTest extends TestCase
 
         Livewire::test(BookingBuilder::class, ['service' => $this->ps5])
             ->call('selectDate', '2026-09-15')
-            ->call('selectTime', '14:00')
+            ->call('selectTime', '2026-09-15 14:00:00')
             ->call('checkout')
             ->assertSet('error', 'Choose the game you want to play.')
+            ->assertSet('showCheckout', false)
             ->set('gameId', $this->ps5->games->first()->id)
             ->call('checkout')
-            ->assertRedirect(route('checkout.show'));
+            ->assertSet('showCheckout', true);
     }
 
     public function test_guest_is_sent_to_login_from_checkout(): void
     {
         Livewire::test(BookingBuilder::class, ['service' => $this->court])
             ->call('selectDate', '2026-09-15')
-            ->call('selectTime', '10:00')
+            ->call('selectTime', '2026-09-15 10:00:00')
             ->call('checkout')
             ->assertRedirect(route('login'));
     }
 
-    public function test_checkout_creates_a_pay_at_venue_booking(): void
+    public function test_unavailable_gateways_are_rejected_even_if_forced(): void
     {
-        $this->actingAs($this->customer)->withSession([CheckoutController::SESSION_KEY => $this->draft($this->court, '2026-09-15 10:00:00', 1)]);
+        $this->actingAs($this->customer);
 
-        $response = $this->post(route('checkout.store'), [
-            'customer_name' => 'Sahan J',
-            'customer_phone' => '0771234567',
-            'payment_method' => 'pay_at_venue',
-        ]);
-
-        $booking = Booking::firstOrFail();
-        $response->assertRedirect(route('bookings.show', $booking));
-        $this->assertSame(BookingStatus::Pending, $booking->status);
-        $this->assertSame(PaymentStatus::Unpaid, $booking->payment_status);
-        $this->assertSame(1, $booking->priority);
-        $this->assertEquals(5000, $booking->total);
-        $this->assertNull(session(CheckoutController::SESSION_KEY));
-
-        $this->get(route('bookings.show', $booking))->assertOk()->assertSee($booking->reference)->assertSee('pay');
-        $this->assertCount(1, $this->customer->notifications);
-        $this->assertCount(1, $this->court->venue->owner->notifications);
-    }
-
-    public function test_unavailable_gateways_are_rejected(): void
-    {
-        $this->actingAs($this->customer)->withSession([CheckoutController::SESSION_KEY => $this->draft($this->court, '2026-09-15 10:00:00', 1)]);
-
-        $this->post(route('checkout.store'), [
-            'customer_name' => 'Sahan J',
-            'customer_phone' => '0771234567',
-            'payment_method' => 'card',
-        ])->assertSessionHasErrors('payment_method');
+        Livewire::test(BookingBuilder::class, ['service' => $this->court])
+            ->call('selectDate', '2026-09-15')
+            ->call('selectTime', '2026-09-15 10:00:00')
+            ->call('checkout')
+            ->call('selectPaymentMethod', 'card')
+            ->assertSet('paymentMethod', 'pay_at_venue') // ignored: not available
+            ->set('paymentMethod', 'card')
+            ->call('placeBooking')
+            ->assertHasErrors('paymentMethod');
 
         $this->assertSame(0, Booking::count());
     }
@@ -148,7 +193,7 @@ class BookingFlowTest extends TestCase
         } catch (SlotUnavailableException) {
         }
 
-        $winner = $service->reserve($other, $this->court, $this->court->defaultOption(), $start->copy()->subMinutes(30)->addMinutes(30), 1, PaymentMethod::BankTransfer, $this->details());
+        $winner = $service->reserve($other, $this->court, $this->court->defaultOption(), $start, 1, PaymentMethod::BankTransfer, $this->details());
 
         $this->assertSame(BookingStatus::Bumped, $first->fresh()->status);
         $this->assertSame($winner->id, $first->fresh()->bumped_by_booking_id);
@@ -221,14 +266,14 @@ class BookingFlowTest extends TestCase
         $vendor = $this->court->venue->owner;
 
         $this->actingAs($vendor);
-        $this->get(route('vendor.dashboard'))->assertOk()->assertSee('CR7 Futsal Arena');
+        $this->get(route('vendor.dashboard'))->assertOk()->assertSee('CR7 Futsal Arena')->assertSee('waiting for your verification')->assertSee($booking->reference);
         $this->get(route('vendor.venues.index'))->assertOk();
-        $this->get(route('vendor.venues.edit', $this->court->venue))->assertOk();
+        $this->get(route('vendor.venues.edit', $this->court->venue))->assertOk()->assertSee('Map pin');
         $this->get(route('vendor.venues.services.index', $this->court->venue))->assertOk()->assertSee('Court A (Main)');
         $this->get(route('vendor.venues.services.edit', [$this->court->venue, $this->court]))->assertOk();
         $this->get(route('vendor.venues.services.create', $this->court->venue))->assertOk();
         $this->get(route('vendor.bookings.index', ['pending_payment' => 1]))->assertOk()->assertSee($booking->reference);
-        $this->get(route('vendor.bookings.show', $booking))->assertOk();
+        $this->get(route('vendor.bookings.show', $booking))->assertOk()->assertSee('Verify within');
         $this->get(route('vendor.events'))->assertOk()->assertJsonCount(1);
 
         $this->post(route('vendor.bookings.paid', $booking), ['reference' => 'TXN999'])->assertRedirect();
@@ -236,6 +281,7 @@ class BookingFlowTest extends TestCase
         $this->assertSame(PaymentStatus::Paid, $booking->payment_status);
         $this->assertSame(BookingStatus::Confirmed, $booking->status);
         $this->assertSame(3, $booking->priority);
+        $this->assertNull($booking->hold_expires_at);
 
         $this->actingAs($this->customer)->get(route('vendor.dashboard'))->assertForbidden();
     }
@@ -280,7 +326,7 @@ class BookingFlowTest extends TestCase
         $this->get(route('admin.users.index'))->assertOk();
         $this->get(route('admin.venues.index'))->assertOk();
         $this->get(route('admin.activity-types.index'))->assertOk()->assertSee('Paintball');
-        $this->get(route('admin.activity-types.create'))->assertOk();
+        $this->get(route('admin.activity-types.create'))->assertOk()->assertSee('Tile photo');
         $this->get(route('admin.games.index'))->assertOk()->assertSee('EA Sports FC 26');
 
         $this->post(route('admin.venues.approval', $venue))->assertRedirect();
@@ -289,23 +335,11 @@ class BookingFlowTest extends TestCase
         $this->actingAs($this->customer)->get(route('venues.show', $venue))->assertNotFound();
     }
 
-    public function test_registration_assigns_roles(): void
+    public function test_customer_registration(): void
     {
-        $this->post('/register', ['name' => 'New Vendor', 'email' => 'nv@example.com', 'phone' => '0712223334', 'password' => 'password123', 'password_confirmation' => 'password123', 'account_type' => 'vendor'])
-            ->assertRedirect(route('vendor.venues.create'));
-        $this->assertSame(Role::Vendor, User::where('email', 'nv@example.com')->first()->role_id);
-    }
-
-    protected function draft(Service $service, string $startsAt, int $slots): array
-    {
-        return [
-            'service_id' => $service->id,
-            'option_id' => $service->defaultOption()->id,
-            'game_id' => null,
-            'starts_at' => $startsAt,
-            'slots' => $slots,
-            'players' => null,
-        ];
+        $this->post('/register', ['name' => 'New Customer', 'email' => 'nc@example.com', 'phone' => '0712223334', 'password' => 'password123', 'password_confirmation' => 'password123'])
+            ->assertRedirect('/');
+        $this->assertSame(Role::Customer, User::where('email', 'nc@example.com')->first()->role_id);
     }
 
     protected function details(): array

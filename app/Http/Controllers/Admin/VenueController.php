@@ -12,7 +12,7 @@ class VenueController extends Controller
 {
     public function index(Request $request): View
     {
-        $venues = Venue::with('owner')
+        $venues = Venue::with('owner.vendorProfile')
             ->withCount(['services', 'bookings'])
             ->when($request->filled('q'), fn ($q) => $q->search($request->input('q')))
             ->when($request->input('status') === 'pending', fn ($q) => $q->where('is_approved', false))

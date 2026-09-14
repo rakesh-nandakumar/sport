@@ -17,6 +17,7 @@ class BookingController extends Controller
 
     public function index(Request $request): View
     {
+        $this->bookings->expireStaleHolds();
         $venueIds = $request->user()->venues()->pluck('id');
 
         $bookings = Booking::whereIn('venue_id', $venueIds)
@@ -57,7 +58,7 @@ class BookingController extends Controller
     public function markPaid(Request $request, Booking $booking): RedirectResponse
     {
         $this->authorizeOwner($request, $booking);
-        abort_unless($booking->isActive(), 422);
+        abort_unless($booking->isActive(), 422, 'This booking is no longer active (it may have expired or been cancelled).');
         $this->bookings->markPaid($booking, $request->user(), $request->input('reference'));
 
         return back()->with('message', 'Payment recorded. Booking is confirmed.');

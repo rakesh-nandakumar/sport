@@ -11,6 +11,7 @@ class BookingNotification extends Notification
         public string $message,
         public string $type = 'system',
         public ?Booking $booking = null,
+        public ?string $link = null,
     ) {}
 
     public function via(object $notifiable): array
@@ -29,7 +30,7 @@ class BookingNotification extends Notification
                 default => 'fa-solid fa-bell',
             },
             'booking_reference' => $this->booking?->reference,
-            'link' => $this->booking ? route('bookings.show', $this->booking) : null,
+            'link' => $this->link ?? ($this->booking ? route('bookings.show', $this->booking) : null),
         ];
     }
 }

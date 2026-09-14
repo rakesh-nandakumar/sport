@@ -21,7 +21,7 @@ class Booking extends Model
         'reference', 'user_id', 'venue_id', 'service_id', 'service_option_id', 'game_id',
         'starts_at', 'ends_at', 'slots', 'players', 'unit_price', 'subtotal', 'discount', 'total',
         'price_breakdown', 'currency', 'status', 'payment_method', 'payment_status', 'priority',
-        'customer_name', 'customer_phone', 'notes', 'vendor_confirmed_at', 'cancelled_at',
+        'customer_name', 'customer_phone', 'notes', 'vendor_confirmed_at', 'hold_expires_at', 'cancelled_at',
         'cancel_reason', 'bumped_by_booking_id',
     ];
 
@@ -31,6 +31,7 @@ class Booking extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'vendor_confirmed_at' => 'datetime',
+            'hold_expires_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'price_breakdown' => 'array',
             'unit_price' => 'decimal:2',
@@ -53,7 +54,7 @@ class Booking extends Model
     public static function generateReference(): string
     {
         do {
-            $ref = 'SPT-'.strtoupper(Str::random(6));
+            $ref = 'EPT-'.strtoupper(Str::random(6));
         } while (static::where('reference', $ref)->exists());
 
         return $ref;
@@ -104,6 +105,31 @@ class Booking extends Model
         return $query->whereIn('status', BookingStatus::active());
     }
 
+    /**
+     * Bookings that still occupy their slot right now: active, and not an unverified bank transfer
+     * whose verification window has already closed (the sweeper marks those Expired shortly after).
+     */
+    public function scopeStillHolding(Builder $query): Builder
+    {
+        return $query->active()->where(function (Builder $w) {
+            $w->whereNull('hold_expires_at')
+                ->orWhere('hold_expires_at', '>', now())
+                ->orWhereNotNull('vendor_confirmed_at')
+                ->orWhere('payment_status', PaymentStatus::Paid->value);
+        });
+    }
+
+    /** Unverified bank-transfer holds whose verification window has closed. */
+    public function scopeHoldExpired(Builder $query): Builder
+    {
+        return $query->active()
+            ->where('payment_method', PaymentMethod::BankTransfer->value)
+            ->where('payment_status', '!=', PaymentStatus::Paid->value)
+            ->whereNull('vendor_confirmed_at')
+            ->whereNotNull('hold_expires_at')
+            ->where('hold_expires_at', '<=', now());
+    }
+
     public function scopeOverlapping(Builder $query, \DateTimeInterface $start, \DateTimeInterface $end, int $bufferMinutes = 0): Builder
     {
         $start = Carbon::instance($start)->subMinutes($bufferMinutes);
@@ -130,6 +156,25 @@ class Booking extends Model
     public function isLocked(): bool
     {
         return $this->priority >= 3;
+    }
+
+    /** True while an unverified bank transfer is still counting down. */
+    public function isAwaitingVerification(): bool
+    {
+        return $this->isActive()
+            && $this->payment_method === PaymentMethod::BankTransfer
+            && $this->payment_status !== PaymentStatus::Paid
+            && $this->vendor_confirmed_at === null
+            && $this->hold_expires_at !== null;
+    }
+
+    public function holdMinutesLeft(): int
+    {
+        if (! $this->hold_expires_at) {
+            return 0;
+        }
+
+        return max(0, (int) ceil(now()->diffInSeconds($this->hold_expires_at, false) / 60));
     }
 
     public function durationLabel(): string

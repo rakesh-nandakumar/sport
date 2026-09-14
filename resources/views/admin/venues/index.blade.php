@@ -3,7 +3,7 @@
 
 @section('content')
 <h1 class="display fs-1 mb-0">Venues</h1>
-<p class="text-muted">Approve, feature, or remove venues across the platform.</p>
+<p class="text-muted">Approve, feature, or remove venues. A venue is only live when it is approved <em>and</em> its vendor is active (see <a href="{{ route('admin.vendors.index') }}">Vendors</a>).</p>
 
 <form method="GET" class="row g-2 mb-3">
     <div class="col-md-4"><input name="q" value="{{ $filters['q'] ?? '' }}" class="form-control form-control-sm" placeholder="Search venues"></div>
@@ -18,9 +18,9 @@
         @forelse($venues as $v)
             <tr>
                 <td><a href="{{ route('venues.show', $v) }}" target="_blank" class="fw-semibold text-decoration-none">{{ $v->name }}</a>@if($v->is_featured)<span class="badge bg-danger ms-1">Featured</span>@endif</td>
-                <td>{{ $v->owner->name }}<div class="small text-muted">{{ $v->owner->email }}</div></td>
+                <td>{{ $v->owner->name }}<div class="small text-muted">{{ $v->owner->email }}</div>@if($v->owner->vendorProfile)<a href="{{ route('admin.vendors.show', $v->owner->vendorProfile) }}" class="badge {{ $v->owner->vendorStatus()->bsBadge() }} text-decoration-none">{{ $v->owner->vendorStatus()->label() }}</a>@endif</td>
                 <td>{{ $v->city }}</td><td>{{ $v->services_count }}</td><td>{{ $v->bookings_count }}</td>
-                <td><span class="badge {{ $v->is_approved ? 'bg-success' : 'bg-secondary' }}">{{ $v->is_approved ? 'Live' : 'Hidden' }}</span></td>
+                <td>@if($v->isLive())<span class="badge bg-success">Live</span>@elseif($v->is_approved)<span class="badge bg-warning text-dark" title="Approved, but the vendor is not active">Vendor inactive</span>@else<span class="badge bg-secondary">Hidden</span>@endif</td>
                 <td class="text-end text-nowrap">
                     <form method="POST" action="{{ route('admin.venues.approval', $v) }}" class="d-inline">@csrf<button class="btn btn-sm {{ $v->is_approved ? 'btn-outline-secondary' : 'btn-success' }}">{{ $v->is_approved ? 'Hide' : 'Approve' }}</button></form>
                     <form method="POST" action="{{ route('admin.venues.featured', $v) }}" class="d-inline">@csrf<button class="btn btn-sm btn-outline-dark">{{ $v->is_featured ? 'Unfeature' : 'Feature' }}</button></form>

@@ -3,12 +3,16 @@
 
 @section('content')
 <h1 class="display fs-1 mb-0">Platform overview</h1>
-<p class="text-muted">Venues, bookings and growth across Sportee.</p>
+<p class="text-muted">Venues, bookings and growth across EntryPoint.lk.</p>
+
+@if($stats['pending_vendors'])
+    <div class="alert alert-warning d-flex justify-content-between align-items-center"><span><i class="fa-solid fa-store me-2"></i><strong>{{ $stats['pending_vendors'] }}</strong> vendor {{ Str::plural('application', $stats['pending_vendors']) }} waiting for review.</span><a href="{{ route('admin.vendors.index', ['status' => 'pending']) }}" class="btn btn-sm btn-dark">Review now</a></div>
+@endif
 
 <div class="row g-3 mb-4">
     @foreach([
         ['Venues', $stats['venues'], 'fa-building', 'bg-primary', $stats['pending_venues'].' hidden'],
-        ['Vendors', $stats['vendors'], 'fa-store', 'bg-info', null],
+        ['Vendors', $stats['vendors'], 'fa-store', 'bg-info', $stats['pending_vendors'].' awaiting review'],
         ['Customers', $stats['customers'], 'fa-users', 'bg-secondary', null],
         ['Bookings', $stats['bookings'], 'fa-calendar-check', 'bg-dark', $stats['bookings_today'].' today · '.$stats['bookings_month'].' this month'],
         ['Paid revenue (month)', lkr($stats['revenue_month']), 'fa-sack-dollar', 'bg-success', null],

@@ -37,46 +37,7 @@
     </div></div>
 </section>
 
-{{-- Browse by activity --}}
-<section class="mx-auto max-w-6xl px-4 py-14">
-    <div class="flex items-end justify-between">
-        <div>
-            <h2 class="display text-4xl md:text-5xl text-gray-900">Browse by activity</h2>
-            <p class="mt-1 text-gray-500">From team sports to gaming stations — every listing is bookable by the block.</p>
-        </div>
-        <a href="{{ route('venues.index') }}" class="hidden text-sm font-semibold text-brand hover:underline sm:block">See all venues →</a>
-    </div>
-    <div class="scroll-row mt-8 md:grid md:grid-cols-4 lg:grid-cols-5 md:gap-4 md:overflow-visible">
-        @foreach($activityTypes as $type)
-            <a href="{{ route('venues.index', ['activity' => $type->slug]) }}"
-               class="chip flex w-40 flex-col items-center gap-3 p-5 text-center md:w-auto hover:shadow-md">
-                <span class="grid h-14 w-14 place-items-center rounded-2xl text-2xl" style="background: {{ $type->color }}1a; color: {{ $type->color }}">
-                    <i class="{{ $type->icon }}"></i>
-                </span>
-                <span class="font-semibold text-gray-900">{{ $type->name }}</span>
-                <span class="text-xs text-gray-500">{{ $type->services_count }} {{ Str::plural('listing', $type->services_count) }}</span>
-            </a>
-        @endforeach
-    </div>
-</section>
-
-{{-- Featured venues --}}
-<section class="bg-gray-50 py-14">
-    <div class="mx-auto max-w-6xl px-4">
-        <h2 class="display text-4xl md:text-5xl text-gray-900">Popular venues</h2>
-        <p class="mt-1 text-gray-500">Top-rated places our community keeps coming back to.</p>
-        <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            @forelse($featured as $venue)
-                <x-venue-card :venue="$venue" />
-            @empty
-                <p class="text-gray-500">No venues yet — <a href="{{ route('register.vendor') }}" class="text-brand underline">list yours</a>.</p>
-            @endforelse
-        </div>
-        <div class="mt-8 text-center">
-            <a href="{{ route('venues.index') }}" class="btn-ghost">Explore all venues</a>
-        </div>
-    </div>
-</section>
+@include('home._personal')
 
 {{-- How it works --}}
 <section class="mx-auto max-w-6xl px-4 py-16">
@@ -112,7 +73,7 @@
         <div>
             <p class="text-sm font-semibold uppercase tracking-[.3em] text-red-400">For venue owners</p>
             <h2 class="display mt-2 text-4xl md:text-5xl">Run any bookable activity from one dashboard</h2>
-            <p class="mt-4 text-gray-300">Futsal, cricket, badminton, swimming lanes, PS5 stations, paintball sessions — define your own block size, minimum booking, buffer gaps, seat types and peak-hour pricing. Sportee calculates the rate and keeps your calendar clean.</p>
+            <p class="mt-4 text-gray-300">Futsal, cricket, badminton, swimming lanes, PS5 stations, paintball sessions — define your own block size, minimum booking, buffer gaps, seat types and peak-hour pricing. EntryPoint.lk calculates the rate and keeps your calendar clean.</p>
             <a href="{{ route('register.vendor') }}" class="btn-brand mt-6">List your venue — it's free</a>
         </div>
         <ul class="grid gap-4 sm:grid-cols-2">

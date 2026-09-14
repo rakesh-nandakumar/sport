@@ -12,7 +12,7 @@ class ActivityType extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'slug', 'icon', 'color', 'unit_label', 'description',
+        'name', 'slug', 'icon', 'color', 'image', 'unit_label', 'description',
         'requires_game', 'default_slot_minutes', 'is_featured', 'sort_order',
     ];
 
@@ -44,5 +44,15 @@ class ActivityType extends Model
     public function services(): HasMany
     {
         return $this->hasMany(Service::class);
+    }
+
+    /** Background photo for browse tiles; null when none has been set. */
+    public function imageUrl(): ?string
+    {
+        if (! $this->image) {
+            return null;
+        }
+
+        return Str::startsWith($this->image, ['http', '/']) ? $this->image : asset('storage/'.$this->image);
     }
 }

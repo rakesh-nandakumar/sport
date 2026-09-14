@@ -13,8 +13,8 @@ use App\Models\Service;
 use App\Models\ServiceOption;
 use App\Models\User;
 use App\Notifications\BookingNotification;
-use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class BookingService
@@ -25,8 +25,10 @@ class BookingService
     ) {}
 
     /**
-     * Reserve a slot. Competing bookings with a lower payment priority are replaced ("bumped");
-     * equal or higher priority bookings block the request.
+     * Reserve a slot. Capacity is checked block by block, so identical units are treated as
+     * interchangeable (a 10–12 booking fits between a 10–11 and an 11–12 booking on a 2-unit option).
+     * Competing bookings with a lower payment priority are replaced ("bumped"); equal or higher
+     * priority bookings block the request.
      *
      * @throws SlotUnavailableException
      */
@@ -41,28 +43,29 @@ class BookingService
         ?Game $game = null,
     ): Booking {
         if (! $method->isAvailable()) {
-            throw new SlotUnavailableException($method->label().' is not available yet. Please choose another payment method.');
+            throw new SlotUnavailableException($method->label().' is not available right now. Please choose another payment method.');
+        }
+        if ($option->service_id !== $service->id) {
+            throw new SlotUnavailableException('That option does not belong to this service.');
+        }
+        if (! $service->is_active || ! $service->venue->isLive()) {
+            throw new SlotUnavailableException('This service is not taking bookings at the moment.');
         }
 
+        $this->expireStaleHolds();
         $this->assertWithinRules($service, $start, $slots);
 
         $end = $start->copy()->addMinutes($slots * $service->slot_minutes);
         $paymentStatus = $method === PaymentMethod::BankTransfer ? PaymentStatus::PendingVerification : PaymentStatus::Unpaid;
         $priority = Booking::priorityFor($method, $paymentStatus);
         $quote = $this->pricing->quote($service, $option, $start, $slots);
+        $holdExpiresAt = $method === PaymentMethod::BankTransfer
+            ? now()->addMinutes((int) setting('payments.bank_transfer_hold_minutes'))
+            : null;
 
-        return DB::transaction(function () use ($customer, $service, $option, $start, $end, $slots, $method, $details, $game, $paymentStatus, $priority, $quote) {
-            $competing = $this->availability->competingBookings($service, $option, $start, $end);
-            $bumpable = $competing->filter(fn (Booking $b) => $b->priority < $priority);
-            $blocking = $competing->count() - $bumpable->count();
-
-            if ($blocking >= $option->capacity) {
-                throw new SlotUnavailableException('That time is no longer available. Please pick another slot.');
-            }
-
-            $toBump = $competing->count() >= $option->capacity
-                ? $bumpable->sortBy('priority')->take($competing->count() - $option->capacity + 1)
-                : collect();
+        return DB::transaction(function () use ($customer, $service, $option, $start, $end, $slots, $method, $details, $game, $paymentStatus, $priority, $quote, $holdExpiresAt) {
+            $competing = $this->availability->competingBookings($service, $option, $start, $end, lock: true);
+            $toBump = $this->resolveCapacity($service, $option, $start, $slots, $priority, $competing);
 
             $booking = Booking::create([
                 'user_id' => $customer->id,
@@ -83,6 +86,7 @@ class BookingService
                 'payment_method' => $method,
                 'payment_status' => $paymentStatus,
                 'priority' => $priority,
+                'hold_expires_at' => $holdExpiresAt,
                 'customer_name' => $details['customer_name'],
                 'customer_phone' => $details['customer_phone'],
                 'notes' => $details['notes'] ?? null,
@@ -94,6 +98,7 @@ class BookingService
                     'method' => $method,
                     'amount' => $booking->total,
                     'status' => PaymentStatus::PendingVerification,
+                    'reference' => $details['bank_reference'] ?? null,
                 ]);
             }
 
@@ -106,6 +111,43 @@ class BookingService
 
             return $booking;
         });
+    }
+
+    /**
+     * Check every block of the requested range against the option capacity. Returns the bookings that
+     * must be bumped to make room, or throws when equal/higher-priority bookings already fill a block.
+     *
+     * @throws SlotUnavailableException
+     */
+    protected function resolveCapacity(Service $service, ServiceOption $option, CarbonInterface $start, int $slots, int $priority, Collection $competing): Collection
+    {
+        $toBump = collect();
+
+        for ($i = 0; $i < $slots; $i++) {
+            $blockStart = $start->copy()->addMinutes($i * $service->slot_minutes);
+            $blockEnd = $blockStart->copy()->addMinutes($service->slot_minutes);
+
+            $inBlock = $competing
+                ->reject(fn (Booking $b) => $toBump->contains('id', $b->id))
+                ->filter(fn (Booking $b) => $this->availability->occupies($b, $blockStart, $blockEnd, $service->buffer_minutes));
+
+            $blocking = $inBlock->filter(fn (Booking $b) => $b->priority >= $priority);
+            if ($blocking->count() >= $option->capacity) {
+                throw new SlotUnavailableException('That time is no longer available. Please pick another slot.');
+            }
+
+            $unitsToFree = $inBlock->count() - $option->capacity + 1;
+            if ($unitsToFree > 0) {
+                // Bump the weakest holds first; among equals the most recent one loses.
+                $victims = $inBlock
+                    ->filter(fn (Booking $b) => $b->priority < $priority)
+                    ->sortBy([['priority', 'asc'], ['created_at', 'desc']])
+                    ->take($unitsToFree);
+                $toBump = $toBump->concat($victims);
+            }
+        }
+
+        return $toBump->unique('id')->values();
     }
 
     public function cancel(Booking $booking, User $actor, ?string $reason = null): void
@@ -126,12 +168,13 @@ class BookingService
         }
     }
 
-    /** Vendor confirmation locks the slot so it can no longer be replaced. */
+    /** Vendor confirmation locks the slot so it can no longer be replaced or expire. */
     public function vendorConfirm(Booking $booking): void
     {
         $booking->update([
             'status' => BookingStatus::Confirmed,
             'vendor_confirmed_at' => now(),
+            'hold_expires_at' => null,
             'priority' => 3,
         ]);
 
@@ -157,6 +200,7 @@ class BookingService
             $booking->update([
                 'payment_status' => PaymentStatus::Paid,
                 'status' => BookingStatus::Confirmed,
+                'hold_expires_at' => null,
                 'priority' => 3,
             ]);
         });
@@ -173,15 +217,51 @@ class BookingService
             'status' => PaymentStatus::PendingVerification,
         ]);
 
-        $payment->update(['proof_path' => $path, 'reference' => $reference]);
+        $payment->update(['proof_path' => $path, 'reference' => $reference ?: $payment->reference]);
         $booking->update(['payment_status' => PaymentStatus::PendingVerification]);
 
-        $booking->venue->owner->notify(new BookingNotification("A bank transfer slip was uploaded for {$booking->reference}. Please verify it.", 'system', $booking));
+        $deadline = $booking->hold_expires_at ? ' Please verify before '.$booking->hold_expires_at->format('h:i A').' or the slot will be released.' : '';
+        $booking->venue->owner->notify(new BookingNotification("A bank transfer slip was uploaded for {$booking->reference}.{$deadline}", 'system', $booking));
     }
 
     public function complete(Booking $booking, bool $noShow = false): void
     {
         $booking->update(['status' => $noShow ? BookingStatus::NoShow : BookingStatus::Completed]);
+    }
+
+    /**
+     * Release unverified bank-transfer holds whose window has closed. Runs from the scheduler every
+     * minute and opportunistically before new reservations, so it works without a cron in local dev.
+     *
+     * @return int number of bookings expired
+     */
+    public function expireStaleHolds(): int
+    {
+        $stale = Booking::holdExpired()->with(['user', 'venue.owner', 'service'])->get();
+        $minutes = (int) setting('payments.bank_transfer_hold_minutes');
+
+        foreach ($stale as $booking) {
+            $booking->update([
+                'status' => BookingStatus::Expired,
+                'cancelled_at' => now(),
+                'cancel_reason' => 'Bank transfer was not verified in time',
+            ]);
+            $booking->payments()->where('status', PaymentStatus::PendingVerification)->update(['status' => PaymentStatus::Unpaid]);
+
+            $when = $booking->starts_at->format('d M, h:i A');
+            $booking->user->notify(new BookingNotification(
+                "Booking {$booking->reference} ({$booking->service->name}, {$when}) expired because the bank transfer was not verified within {$minutes} minutes. The slot is open again: book it once more and upload your slip straight away, or choose Pay at Venue.",
+                'danger',
+                $booking,
+            ));
+            $booking->venue->owner->notify(new BookingNotification(
+                "Bank transfer hold {$booking->reference} ({$when}) expired unverified and the slot was released.",
+                'system',
+                $booking,
+            ));
+        }
+
+        return $stale->count();
     }
 
     protected function bump(Booking $victim, Booking $winner): void
@@ -204,17 +284,19 @@ class BookingService
     {
         $when = $booking->starts_at->format('D d M, h:i A');
 
+        $next = $booking->payment_method === PaymentMethod::BankTransfer
+            ? 'The venue has until '.$booking->hold_expires_at->format('h:i A').' to verify your transfer slip.'
+            : 'Pay at the venue when you arrive.';
+
         $booking->user->notify(new BookingNotification(
-            "Booking {$booking->reference} placed: {$booking->service->name} at {$booking->venue->name}, {$when}. ".
-            ($booking->payment_method === PaymentMethod::BankTransfer
-                ? 'Upload your transfer slip so the venue can verify it.'
-                : 'Pay at the venue when you arrive.'),
+            "Booking {$booking->reference} placed: {$booking->service->name} at {$booking->venue->name}, {$when}. {$next}",
             'success',
             $booking,
         ));
 
         $booking->venue->owner->notify(new BookingNotification(
-            "New booking {$booking->reference}: {$booking->customer_name} booked {$booking->service->name} ({$booking->option->name}) for {$when} · {$booking->payment_method->label()}.",
+            "New booking {$booking->reference}: {$booking->customer_name} booked {$booking->service->name} ({$booking->option->name}) for {$when} · {$booking->payment_method->label()}.".
+            ($booking->hold_expires_at ? ' Verify the transfer before '.$booking->hold_expires_at->format('h:i A').'.' : ''),
             'success',
             $booking,
         ));
@@ -229,28 +311,29 @@ class BookingService
             throw new SlotUnavailableException("Maximum booking is {$service->max_slots} × {$service->slotLabel()}.");
         }
         if ($start->lt(now()->addMinutes($service->lead_time_minutes))) {
-            throw new SlotUnavailableException('Bookings must be made at least '.$service->lead_time_minutes.' minutes in advance.');
+            throw new SlotUnavailableException('Bookings must be made at least '.minutes_label($service->lead_time_minutes).' in advance.');
         }
 
-        $window = $service->windowFor($start->dayOfWeek);
-        if (! $window) {
-            throw new SlotUnavailableException('The venue is closed on that day.');
+        $maxDays = (int) setting('bookings.max_days_ahead');
+        if ($start->gt(today()->addDays($maxDays)->endOfDay())) {
+            throw new SlotUnavailableException("Bookings can be made up to {$maxDays} days ahead.");
         }
 
-        [$opens, $closes] = $window;
-        $dayOpen = Carbon::parse($start->toDateString().' '.$opens);
-        $dayClose = Carbon::parse($start->toDateString().' '.$closes);
-        if ($dayClose->lte($dayOpen)) {
-            $dayClose->addDay();
+        $day = $this->availability->sessionDayFor($service, $start);
+        if (! $day) {
+            $window = $service->windowFor($start->dayOfWeek);
+            throw new SlotUnavailableException($window
+                ? "That time is outside opening hours ({$window[0]} – {$window[1]})."
+                : 'The venue is closed on that day.');
         }
 
+        [$dayOpen, $dayClose] = $this->availability->windowBounds($service, $day);
         $end = $start->copy()->addMinutes($slots * $service->slot_minutes);
-        if ($start->lt($dayOpen) || $end->gt($dayClose)) {
-            throw new SlotUnavailableException("That time is outside opening hours ({$opens} – {$closes}).");
+        if ($end->gt($dayClose)) {
+            throw new SlotUnavailableException('That booking would run past closing time ('.$dayClose->format('h:i A').').');
         }
 
-        $offset = $start->diffInMinutes($dayOpen, true);
-        if ($offset % $service->slot_minutes !== 0) {
+        if ($dayOpen->diffInMinutes($start, true) % $service->slot_minutes !== 0) {
             throw new SlotUnavailableException('Start time must align with the '.$service->slotLabel().' booking blocks.');
         }
     }

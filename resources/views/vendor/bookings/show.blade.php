@@ -10,6 +10,7 @@
         <span class="badge {{ $booking->payment_status->bsBadge() }}">{{ $booking->payment_status->label() }}</span>
         <span class="badge bg-dark">{{ $booking->payment_method->label() }} · priority {{ $booking->priority }}/3</span>
         @if($booking->isLocked())<span class="badge bg-success"><i class="fa-solid fa-lock me-1"></i>Locked</span>@endif
+        @if($booking->isAwaitingVerification())<span class="badge {{ $booking->holdMinutesLeft() <= 5 ? 'bg-danger' : 'bg-warning text-dark' }}"><i class="fa-regular fa-clock me-1"></i>Verify within {{ $booking->holdMinutesLeft() }} min (by {{ $booking->hold_expires_at->format('h:i A') }})</span>@endif
     </div>
     <div class="fs-3 fw-bold">{{ lkr($booking->total) }}</div>
 </div>
@@ -67,8 +68,8 @@
                     @if($booking->payment_status !== \App\Enums\PaymentStatus::Paid)
                         <form method="POST" action="{{ route('vendor.bookings.paid', $booking) }}">@csrf
                             <input name="reference" class="form-control form-control-sm mb-2" placeholder="Receipt / transfer reference (optional)">
-                            <button class="btn btn-primary w-100"><i class="fa-solid fa-money-check-dollar me-1"></i>Mark as paid</button>
-                            <div class="form-text">Verifies a bank transfer or records cash taken at the counter. Confirms and locks the booking.</div>
+                            <button class="btn btn-primary w-100"><i class="fa-solid fa-money-check-dollar me-1"></i>{{ $booking->isAwaitingVerification() ? 'Verify transfer & lock' : 'Mark as paid' }}</button>
+                            <div class="form-text">Verifies a bank transfer or records cash taken at the counter. Confirms and locks the booking.@if($booking->isAwaitingVerification()) Check the slip against your bank statement first — after {{ $booking->hold_expires_at->format('h:i A') }} this hold expires automatically.@endif</div>
                         </form>
                     @endif
                     @if($booking->ends_at->isPast())

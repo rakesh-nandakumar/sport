@@ -10,6 +10,7 @@ enum BookingStatus: string
     case Cancelled = 'cancelled';
     case Bumped = 'bumped';
     case NoShow = 'no_show';
+    case Expired = 'expired';
 
     public function label(): string
     {
@@ -20,6 +21,7 @@ enum BookingStatus: string
             self::Cancelled => 'Cancelled',
             self::Bumped => 'Replaced',
             self::NoShow => 'No show',
+            self::Expired => 'Expired',
         };
     }
 
@@ -31,7 +33,7 @@ enum BookingStatus: string
             self::Confirmed => 'bg-emerald-100 text-emerald-800',
             self::Completed => 'bg-sky-100 text-sky-800',
             self::Cancelled, self::Bumped => 'bg-rose-100 text-rose-800',
-            self::NoShow => 'bg-gray-200 text-gray-700',
+            self::NoShow, self::Expired => 'bg-gray-200 text-gray-700',
         };
     }
 
@@ -43,7 +45,7 @@ enum BookingStatus: string
             self::Confirmed => 'bg-success',
             self::Completed => 'bg-info text-dark',
             self::Cancelled, self::Bumped => 'bg-danger',
-            self::NoShow => 'bg-secondary',
+            self::NoShow, self::Expired => 'bg-secondary',
         };
     }
 

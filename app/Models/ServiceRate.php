@@ -30,7 +30,17 @@ class ServiceRate extends Model
         }
 
         $time = $slotStart->format('H:i');
+        $from = substr($this->starts_at, 0, 5);
+        $to = substr($this->ends_at, 0, 5);
 
-        return $time >= substr($this->starts_at, 0, 5) && $time < substr($this->ends_at, 0, 5);
+        // "18:00 – 00:00" means until midnight; "22:00 – 02:00" wraps past midnight.
+        if ($to === '00:00') {
+            $to = '24:00';
+        }
+        if ($to <= $from) {
+            return $time >= $from || $time < $to;
+        }
+
+        return $time >= $from && $time < $to;
     }
 }

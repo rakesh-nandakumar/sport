@@ -4,8 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="icon" type="image/jpg" href="/images/sporteeFav.jpg">
-    <title>@yield('title', 'Sportee · Book any sport, any time')</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="theme-color" content="#ef4444">
+    <title>@yield('title', 'EntryPoint.lk · Book any sport, any time')</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
@@ -30,14 +35,17 @@
     </script>
 
     <link rel="stylesheet" href="/css/styles.css">
-    <link rel="stylesheet" href="/css/sportee.css">
+    <link rel="stylesheet" href="/css/theme.css">
     @livewireStyles
     @stack('head')
 </head>
-<body class="bg-white text-gray-800 antialiased">
+@php($hasLocation = (bool) session(\App\Services\PersonalizationService::SESSION_KEY) || auth()->user()?->hasLocation() || request()->cookie(\App\Services\PersonalizationService::COOKIE))
+<body class="bg-white text-gray-800 antialiased" data-has-location="{{ $hasLocation ? 1 : 0 }}">
 
 <header class="head">
-    <a href="{{ route('home') }}" class="indoorLogo">SPORTEE</a>
+    <a href="{{ route('home') }}" class="brand">
+        <img src="{{ asset('images/brand/wordmark-white.png') }}" alt="EntryPoint.lk" class="brand-logo">
+    </a>
 
     <input type="checkbox" id="ch">
     <label for="ch" class="icons">
@@ -79,7 +87,7 @@
 
 <footer class="site-footer">
     <div class="footer-content">
-        <h3>Sportee</h3>
+        <img src="{{ asset('images/brand/wordmark-white.png') }}" alt="EntryPoint.lk" class="footer-logo">
         <p>Book any sport, game or activity across Sri Lanka in seconds. Futsal courts, cricket nets, gaming lounges, paintball arenas, badminton halls and more — pick a venue, pick a time, and play.</p>
         <ul class="socials">
             <li><a href="#"><i class="fa-brands fa-facebook"></i></a></li>
@@ -89,13 +97,36 @@
         </ul>
     </div>
     <div class="footer-bottom">
-        <p>copyright &copy; {{ date('Y') }} Sportee. <span>Play anywhere, any time.</span></p>
+        <p>copyright &copy; {{ date('Y') }} EntryPoint.lk. <span>Play anywhere, any time.</span></p>
     </div>
 </footer>
 
 <x-flash />
 
 @livewireScripts
+<script>
+    // Location for "near you" sorting. Asks the browser once per session on first visit (guests and
+    // members alike); a district picker in the location bar is the fallback when permission is denied.
+    window.epRequestLocation = function () {
+        return new Promise(function (resolve) {
+            if (! navigator.geolocation) { resolve(false); return; }
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                fetch(@json(route('location.store')), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
+                    body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                }).then(function () { window.location.reload(); }).catch(function () { resolve(false); });
+            }, function () { resolve(false); }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 });
+        });
+    };
+    (function () {
+        try {
+            if (document.body.dataset.hasLocation === '1' || sessionStorage.getItem('ep_loc_asked')) return;
+            sessionStorage.setItem('ep_loc_asked', '1');
+            window.epRequestLocation();
+        } catch (e) {}
+    })();
+</script>
 @stack('scripts')
 </body>
 </html>

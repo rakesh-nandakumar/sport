@@ -21,7 +21,7 @@ class BookingSeeder extends Seeder
     public function run(): void
     {
         $customers = collect([
-            User::updateOrCreate(['email' => 'customer@sportee.lk'], ['name' => 'Sahan Jayasuriya', 'phone' => '0779876543', 'password' => 'password', 'role_id' => Role::Customer]),
+            User::updateOrCreate(['email' => 'customer@entrypoint.lk'], ['name' => 'Sahan Jayasuriya', 'phone' => '0779876543', 'password' => 'password', 'role_id' => Role::Customer]),
         ]);
         $names = ['Nimal Perera', 'Kavindya Fernando', 'Tharushi Silva', 'Mohamed Rizwan', 'Dilshan Madushanka', 'Ishara Wijesinghe', 'Priyanka Rajapaksa', 'Chamath Gunaratne', 'Fathima Nazeer', 'Lasith Ekanayake', 'Hasini Weerasekara', 'Ravindu Dissanayake', 'Aravinth Sivakumar', 'Nethmi Gamage', 'Yasas Amarasinghe'];
         foreach ($names as $i => $name) {
@@ -112,6 +112,10 @@ class BookingSeeder extends Seeder
                     'customer_name' => $customer->name,
                     'customer_phone' => $customer->phone,
                     'vendor_confirmed_at' => $vendorConfirmed ? $start->copy()->subDays(1) : null,
+                    // Unverified transfers in the future are still inside their verification window
+                    'hold_expires_at' => ! $isPast && $method === PaymentMethod::BankTransfer && $paymentStatus === PaymentStatus::PendingVerification && ! $vendorConfirmed
+                        ? now()->addMinutes(rand(8, 240))
+                        : null,
                     'cancelled_at' => $status === BookingStatus::Cancelled ? $start->copy()->subHours(6) : null,
                     'cancel_reason' => $status === BookingStatus::Cancelled ? 'Change of plans' : null,
                     'created_at' => $start->copy()->subDays(rand(1, 5)),

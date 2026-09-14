@@ -4,6 +4,7 @@
     $activities = $venue->services->pluck('activityType')->unique('id')->take(4);
     $from = $venue->services->flatMap->options->min('price_per_slot');
     $rating = $venue->reviews_avg_rating ?? null;
+    $km = $venue->distance_km ?? null;
 @endphp
 
 <article class="group overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-gray-100 transition hover:-translate-y-1 hover:shadow-xl">
@@ -18,7 +19,7 @@
             @endif
         </div>
         <div class="p-4">
-            <p class="text-xs font-medium uppercase tracking-wide text-brand"><i class="fa-solid fa-location-dot mr-1"></i>{{ $venue->city }}</p>
+            <p class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-brand"><span><i class="fa-solid fa-location-dot mr-1"></i>{{ $venue->city }}</span>@if($km !== null)<span class="rounded-full bg-gray-100 px-2 py-0.5 normal-case tracking-normal text-gray-600">{{ $km < 1 ? '<1' : $km }} km away</span>@endif</p>
             <h3 class="mt-1 text-lg font-semibold text-gray-900 leading-snug">{{ $venue->name }}</h3>
             @if($venue->tagline)
                 <p class="mt-1 text-sm text-gray-500 line-clamp-1">{{ $venue->tagline }}</p>

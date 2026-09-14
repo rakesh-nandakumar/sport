@@ -26,8 +26,24 @@
                     <div class="col-12"><label class="form-label">Tagline</label><input name="tagline" value="{{ old('tagline', $venue->tagline) }}" class="form-control" placeholder="e.g. Colombo's biggest indoor futsal & badminton complex"></div>
                     <div class="col-12"><label class="form-label">Description</label><textarea name="description" rows="5" class="form-control">{{ old('description', $venue->description) }}</textarea></div>
                     <div class="col-md-6"><label class="form-label">Address</label><input name="address" value="{{ old('address', $venue->address) }}" class="form-control" required></div>
-                    <div class="col-md-3"><label class="form-label">City</label><input name="city" value="{{ old('city', $venue->city) }}" class="form-control" required></div>
-                    <div class="col-md-3"><label class="form-label">District</label><input name="district" value="{{ old('district', $venue->district) }}" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">City / town</label><input name="city" value="{{ old('city', $venue->city) }}" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">District</label>
+                        <select name="district" class="form-select" required>
+                            <option value="">Select…</option>
+                            @foreach($districts as $d)<option value="{{ $d }}" @selected(old('district', $venue->district) === $d)>{{ $d }}</option>@endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">Postal code</label><input name="postal_code" value="{{ old('postal_code', $venue->postal_code) }}" class="form-control" maxlength="5" inputmode="numeric" placeholder="00500"></div>
+                    <div class="col-md-9" x-data="{ lat: @js(old('latitude', $venue->latitude)), lng: @js(old('longitude', $venue->longitude)), busy: false }">
+                        <label class="form-label">Map pin <span class="text-muted small">— powers "near you" search and the Google Maps link</span></label>
+                        <div class="input-group">
+                            <input name="latitude" x-model="lat" class="form-control" placeholder="Latitude e.g. 6.88340">
+                            <input name="longitude" x-model="lng" class="form-control" placeholder="Longitude e.g. 79.86600">
+                            <button type="button" class="btn btn-outline-secondary" :disabled="busy" @click="busy = true; navigator.geolocation.getCurrentPosition(p => { lat = p.coords.latitude.toFixed(6); lng = p.coords.longitude.toFixed(6); busy = false }, () => busy = false)" title="Use my current position"><i class="fa-solid" :class="busy ? 'fa-spinner fa-spin' : 'fa-location-crosshairs'"></i></button>
+                            <a class="btn btn-outline-secondary" :href="lat && lng ? 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng : 'https://www.google.com/maps'" target="_blank" rel="noopener" title="Check on Google Maps"><i class="fa-solid fa-map"></i></a>
+                        </div>
+                        <div class="form-text">Right-click a spot in Google Maps and copy the coordinates, or press the crosshair while standing at the venue.</div>
+                    </div>
                     <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" value="{{ old('email', $venue->email) }}" class="form-control"></div>
                     <div class="col-md-6"><label class="form-label">Website</label><input type="url" name="website" value="{{ old('website', $venue->website) }}" class="form-control" placeholder="https://"></div>
                     <div class="col-12">
