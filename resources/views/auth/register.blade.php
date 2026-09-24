@@ -52,7 +52,7 @@
                         <p class="mt-1 text-xs leading-5 text-amber-900">Upload both sides now to use Pay at Venue without being asked again at checkout. You can skip this step, but Pay at Venue will stay unavailable until both images are on your account.</p>
                     </div>
                 </div>
-                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                <div class="mt-4 grid gap-4">
                     <div>
                         <p class="mb-2 text-sm font-medium text-gray-700">NIC front</p>
                         <x-file-drop name="nic_front" accept=".jpg,.jpeg,.png,image/*" :max-size="5" :camera="true" hint="Optional · JPG or PNG · up to 5 MB" />

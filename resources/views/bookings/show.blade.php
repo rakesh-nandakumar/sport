@@ -76,13 +76,13 @@
 
             {{-- What happens next --}}
             @if($booking->isActive())
-                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div id="payment" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                     <h2 class="text-lg font-semibold text-gray-900">What happens next</h2>
                     @if($booking->payment_method === \App\Enums\PaymentMethod::PayAtVenue)
                         <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-gray-600">
                             <li>Your slot is on hold. The venue may call you to confirm — once they confirm, the slot is locked.</li>
                             <li>Until then, another customer who pays online or by bank transfer for the same slot can replace this hold. You'll be notified immediately if that happens.</li>
-                            <li>There is no QR code for Pay at Venue. Bring your physical NIC; the venue will compare it to the front and back images you submitted.</li>
+                            <li>Show your QR code at check-in and bring your physical NIC; the venue will compare it to the front and back images you submitted.</li>
                             <li>Arrive a few minutes early, quote <strong>{{ $booking->reference }}</strong> and pay <strong>{{ lkr($booking->total) }}</strong> at the counter.</li>
                         </ol>
                     @elseif($booking->payment_method === \App\Enums\PaymentMethod::BankTransfer)
@@ -132,7 +132,7 @@
             @elseif($booking->status === \App\Enums\BookingStatus::Bumped)
                 <div class="rounded-2xl bg-rose-50 p-6 text-sm text-rose-800">
                     <h2 class="text-lg font-semibold">This booking was replaced</h2>
-                    <p class="mt-2">Another customer paid for the same slot, which outranks a pay-at-venue hold. Next time choose bank transfer (or online payment when available) to lock your slot.</p>
+                    <p class="mt-2">Another customer paid for the same slot, which outranks a pay-at-venue hold. The QR code for this booking has expired and cannot be used for check-in. Next time choose bank transfer (or online payment when available) to lock your slot.</p>
                     <a href="{{ route('booking.build', $booking->service) }}" class="btn-brand mt-4">Book another time</a>
                 </div>
             @endif

@@ -71,6 +71,7 @@ class BookingFlowTest extends TestCase
             ->assertSet('showCheckout', true)
             ->assertSet('paymentMethod', 'pay_at_venue')
             ->assertSee('Complete your booking')
+            ->assertDontSee('@endif')
             ->assertSee('Pay at Venue')
             ->assertSee('Bank Transfer')
             ->assertSee('Debit / Credit Card')
@@ -110,7 +111,7 @@ class BookingFlowTest extends TestCase
         $this->assertSame('Bibs please', $booking->notes);
         $this->assertNotNull($booking->nic_front_path);
         $this->assertNotNull($booking->nic_back_path);
-        $this->assertNull($booking->qr_token);
+        $this->assertNotNull($booking->qr_token);
 
         $this->get(route('bookings.show', $booking))->assertOk()->assertSee($booking->reference)->assertSee('pay');
         $this->assertCount(1, $this->customer->notifications);
@@ -214,6 +215,7 @@ class BookingFlowTest extends TestCase
         $this->assertSame(PaymentStatus::PendingVerification, $winner->payment_status);
         $this->assertCount(1, $winner->payments);
         $this->assertTrue($this->customer->fresh()->notifications->pluck('data.message')->contains(fn ($m) => str_contains($m, 'replaced')));
+        $this->assertTrue($this->customer->fresh()->notifications->pluck('data.message')->contains(fn ($m) => str_contains($m, 'QR code is no longer valid')));
     }
 
     public function test_vendor_confirmation_locks_a_hold_against_bumping(): void

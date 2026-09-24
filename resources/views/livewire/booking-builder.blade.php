@@ -261,7 +261,12 @@
                     @elseif($paymentMethod === \App\Enums\PaymentMethod::PayAtVenue->value)
                         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                             <p class="font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>This is a provisional hold</p>
-                            <p class="mt-1 text-xs">A paid booking for the same slot can replace this hold until the venue confirms it. You will review this again before placing the booking@if(! auth()->user()?->hasNicOnFile()), then upload front and back NIC photos@endif.</p>
+                            <p class="mt-1 text-xs">
+                                A paid booking for the same slot can replace this hold until the venue confirms it. You will review this again before placing the booking.
+                                @if(! auth()->user()?->hasNicOnFile())
+                                    Upload front and back NIC photos before the booking is placed.
+                                @endif
+                            </p>
                         </div>
                     @endif
 
@@ -277,7 +282,7 @@
         </div>
     @endif
 
-    {{-- Pay at Venue has a deliberately separate final confirmation: no QR is created for it. --}}
+    {{-- Pay at Venue has a deliberately separate final confirmation. --}}
     @if($showPayAtVenueWarning && $quote)
         <div class="fixed inset-0 z-[100001] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4"
              wire:click.self="closePayAtVenueWarning"
@@ -301,7 +306,7 @@
                     @if(! auth()->user()?->hasNicOnFile())
                         <div>
                             <h3 class="font-semibold text-gray-900">NIC verification is required</h3>
-                            <p class="mt-1 text-sm text-gray-600">There is no QR code for Pay at Venue. Bring your physical National Identity Card; the venue will compare it to these two images before check-in.</p>
+                            <p class="mt-1 text-sm text-gray-600">Bring your physical National Identity Card; the venue will compare it to these two images before check-in.</p>
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <p class="mb-2 text-sm font-medium text-gray-700">NIC front</p>

@@ -308,7 +308,7 @@ class BookingService
 
             $when = $booking->starts_at->format('d M, h:i A');
             $booking->user->notify(new BookingNotification(
-                "Booking {$booking->reference} ({$booking->service->name}, {$when}) expired because the bank transfer was not verified within {$minutes} minutes. The slot is open again: book it once more and upload your slip straight away, or choose Pay at Venue.",
+                "Booking {$booking->reference} ({$booking->service->name}, {$when}) expired because the bank transfer was not verified within {$minutes} minutes. Its QR code is no longer valid and the slot is open again: book it once more and upload your slip straight away, or choose Pay at Venue.",
                 'danger',
                 $booking,
             ));
@@ -332,7 +332,7 @@ class BookingService
         ]);
 
         $victim->user->notify(new BookingNotification(
-            "Your pay-at-venue booking {$victim->reference} for {$victim->service->name} on {$victim->starts_at->format('d M, h:i A')} was replaced by a paid booking. Pay online next time to lock your slot.",
+            "Your pay-at-venue booking {$victim->reference} for {$victim->service->name} on {$victim->starts_at->format('d M, h:i A')} was replaced by a paid booking. Its QR code is no longer valid. Book another time or choose a paid method next time to lock your slot.",
             'danger',
             $victim,
         ));

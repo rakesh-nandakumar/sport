@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\BookingStatus;
 use App\Enums\PaymentMethod;
 use App\Models\Booking;
 use App\Models\Payment;
@@ -30,12 +31,41 @@ class BookingController extends Controller
     {
         $this->bookings->expireStaleHolds();
 
+        $filters = [
+            'all' => 'All orders',
+            'current' => 'Current',
+            'future' => 'Future',
+            'previous' => 'Previous',
+            'pay_at_venue' => 'Pay at Venue',
+        ];
+        $filter = $request->string('filter', 'all')->value();
+        abort_unless(array_key_exists($filter, $filters), 404);
+
         $bookings = $request->user()->bookings()
             ->with(['venue', 'service', 'option', 'game'])
+            ->when($filter === 'current', fn ($query) => $query
+                ->active()
+                ->where('starts_at', '<=', now())
+                ->where('ends_at', '>', now()))
+            ->when($filter === 'future', fn ($query) => $query
+                ->active()
+                ->where('starts_at', '>', now()))
+            ->when($filter === 'previous', fn ($query) => $query->where(function ($query) {
+                $query->where('ends_at', '<=', now())
+                    ->orWhereIn('status', [
+                        BookingStatus::Cancelled->value,
+                        BookingStatus::Bumped->value,
+                        BookingStatus::Expired->value,
+                        BookingStatus::NoShow->value,
+                    ]);
+            }))
+            ->when($filter === 'pay_at_venue', fn ($query) => $query
+                ->where('payment_method', PaymentMethod::PayAtVenue->value))
             ->orderByDesc('starts_at')
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
-        return view('bookings.index', ['bookings' => $bookings]);
+        return view('bookings.index', compact('bookings', 'filters', 'filter'));
     }
 
     public function show(Request $request, Booking $booking): View
