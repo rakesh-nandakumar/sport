@@ -1,0 +1,91 @@
+/* Shared drag & drop / paste upload zone (works with Tailwind and Bootstrap layouts). */
+[x-cloak] {
+    display: none !important;
+}
+.ep-drop {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    border: 2px dashed #d1d5db;
+    border-radius: 0.85rem;
+    background: #f9fafb;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ep-drop:hover {
+    border-color: #9ca3af;
+    background: #f3f4f6;
+}
+.ep-drop--focused {
+    outline: 2px solid #ef4444;
+    outline-offset: 2px;
+}
+.ep-drop--dragging {
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+.ep-drop__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.ep-drop__icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 0.6rem;
+    background: #fee2e2;
+    color: #dc2626;
+}
+.ep-drop__icon svg {
+    width: 22px;
+    height: 22px;
+}
+.ep-drop__preview {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 0.6rem;
+}
+.ep-drop__text {
+    display: block;
+    min-width: 0;
+}
+.ep-drop__title {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+}
+.ep-drop__browse {
+    color: #dc2626;
+    text-decoration: underline;
+}
+.ep-drop__meta {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+.ep-drop__file {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.75rem;
+    color: #059669;
+    word-break: break-all;
+}
+.ep-drop__error {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.75rem;
+    color: #dc2626;
+}
