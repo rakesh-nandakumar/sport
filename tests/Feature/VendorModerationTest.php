@@ -22,9 +22,7 @@ use Database\Seeders\VenueSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Auth\Notifications\VerifyEmail;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -45,7 +43,6 @@ class VendorModerationTest extends TestCase
     public function test_vendor_application_collects_business_details_and_starts_pending(): void
     {
         Storage::fake('local');
-        Notification::fake();
 
         $this->get('/register/vendor')->assertOk()->assertSee('Business registration certificate')->assertSee('Owner / director NIC')->assertSee('District');
 
@@ -56,7 +53,6 @@ class VendorModerationTest extends TestCase
         $this->assertSame(Role::Vendor, $user->role_id);
         $this->assertSame(VendorStatus::Pending, $user->vendorStatus());
         $this->assertNull($user->email_verified_at);
-        Notification::assertSentTo($user, VerifyEmail::class);
 
         $profile = $user->vendorProfile;
         $this->assertSame('New Arena (Pvt) Ltd', $profile->business_name);

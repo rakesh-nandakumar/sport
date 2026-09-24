@@ -48,7 +48,9 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.2"
+          # composer.lock includes packages that require PHP 8.4 (for example,
+          # endroid/qr-code and Symfony 8.1 components).
+          php-version: "8.4"
           extensions: mbstring, bcmath, ctype, fileinfo, mysql, gd, zip, intl, exif, pcntl, dom, curl, xml
           coverage: none
           tools: composer:v2

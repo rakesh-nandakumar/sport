@@ -51,7 +51,9 @@ class Booking extends Model
     {
         static::creating(function (self $booking) {
             $booking->reference = $booking->reference ?: self::generateReference();
-            $booking->qr_token = $booking->qr_token ?: self::generateQrToken();
+            $booking->qr_token = $booking->payment_method === PaymentMethod::PayAtVenue
+                ? null
+                : ($booking->qr_token ?: self::generateQrToken());
         });
     }
 
