@@ -200,6 +200,8 @@ Moderators and Marketing Managers can manage venues, the catalogue and users; on
 - **Timezone** — `APP_TIMEZONE` defaults to `Asia/Colombo`; all opening hours, lead times and hold timers use it.
 - **Roles** — the `role:` middleware (accepts a list, e.g. `role:SuperAdministrator,Moderator,MarketingManager`) still guards plain routes like the admin vendor-document download; the two Filament panels gate access themselves via `User::canAccessPanel()` (staff → `admin`, vendors and super admins → `vendor`). Enum values are stable integers so existing user rows keep working.
 
+- **Google sign-in** — create a **Web application** OAuth client in Google Cloud Console, then set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` in `.env`. Add the exact redirect URI (for example, `https://entrypoint.lk/auth/google/callback`) to Google Cloud Console's authorised redirect URIs, run `php artisan migrate`, and clear the cached configuration with `php artisan config:clear`. Google sign-in creates customer accounts and can link an existing account with the same verified Google email.
+
 ---
 
 ## 10. UI/UX decisions

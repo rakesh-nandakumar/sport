@@ -21,11 +21,11 @@ class BookingSeeder extends Seeder
     public function run(): void
     {
         $customers = collect([
-            User::updateOrCreate(['email' => 'customer@entrypoint.lk'], ['name' => 'Sahan Jayasuriya', 'phone' => '0779876543', 'password' => 'password', 'role_id' => Role::Customer]),
+            User::updateOrCreate(['email' => 'customer@entrypoint.lk'], ['name' => 'Sahan Jayasuriya', 'phone' => '0779876543', 'password' => 'password', 'role_id' => Role::Customer, 'email_verified_at' => now()]),
         ]);
         $names = ['Nimal Perera', 'Kavindya Fernando', 'Tharushi Silva', 'Mohamed Rizwan', 'Dilshan Madushanka', 'Ishara Wijesinghe', 'Priyanka Rajapaksa', 'Chamath Gunaratne', 'Fathima Nazeer', 'Lasith Ekanayake', 'Hasini Weerasekara', 'Ravindu Dissanayake', 'Aravinth Sivakumar', 'Nethmi Gamage', 'Yasas Amarasinghe'];
         foreach ($names as $i => $name) {
-            $customers->push(User::updateOrCreate(['email' => 'customer'.($i + 1).'@example.com'], ['name' => $name, 'phone' => '07'.rand(10000000, 99999999), 'password' => 'password', 'role_id' => Role::Customer]));
+            $customers->push(User::updateOrCreate(['email' => 'customer'.($i + 1).'@example.com'], ['name' => $name, 'phone' => '07'.rand(10000000, 99999999), 'password' => 'password', 'role_id' => Role::Customer, 'email_verified_at' => now()]));
         }
 
         $pricing = app(PricingService::class);

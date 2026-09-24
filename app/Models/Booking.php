@@ -23,7 +23,7 @@ class Booking extends Model
         'starts_at', 'ends_at', 'slots', 'players', 'unit_price', 'subtotal', 'discount', 'total',
         'price_breakdown', 'currency', 'status', 'payment_method', 'payment_status', 'priority',
         'customer_name', 'customer_phone', 'notes', 'vendor_confirmed_at', 'hold_expires_at', 'cancelled_at',
-        'pay_at_venue_failure_at', 'cancel_reason', 'bumped_by_booking_id', 'checked_in_at', 'checked_in_by',
+        'pay_at_venue_failure_at', 'nic_front_path', 'nic_back_path', 'cancel_reason', 'bumped_by_booking_id', 'checked_in_at', 'checked_in_by',
     ];
 
     protected function casts(): array

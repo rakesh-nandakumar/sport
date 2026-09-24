@@ -375,11 +375,14 @@ class BookingFlowTest extends TestCase
         $this->actingAs($this->customer)->get(route('venues.show', $venue))->assertNotFound();
     }
 
-    public function test_customer_registration(): void
+    public function test_customer_registration_requires_email_verification(): void
     {
         $this->post('/register', ['name' => 'New Customer', 'email' => 'nc@example.com', 'phone' => '0712223334', 'password' => 'password123', 'password_confirmation' => 'password123'])
-            ->assertRedirect('/');
-        $this->assertSame(Role::Customer, User::where('email', 'nc@example.com')->first()->role_id);
+            ->assertRedirect(route('verification.notice'));
+
+        $user = User::where('email', 'nc@example.com')->firstOrFail();
+        $this->assertSame(Role::Customer, $user->role_id);
+        $this->assertNull($user->email_verified_at);
     }
 
     protected function details(): array

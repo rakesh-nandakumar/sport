@@ -94,6 +94,8 @@ class BookingService
                 'customer_name' => $details['customer_name'],
                 'customer_phone' => $details['customer_phone'],
                 'notes' => $details['notes'] ?? null,
+                'nic_front_path' => $method === PaymentMethod::PayAtVenue ? ($details['nic_front_path'] ?? $customer->nic_front_path) : null,
+                'nic_back_path' => $method === PaymentMethod::PayAtVenue ? ($details['nic_back_path'] ?? $customer->nic_back_path) : null,
             ]);
 
             if ($method === PaymentMethod::BankTransfer) {

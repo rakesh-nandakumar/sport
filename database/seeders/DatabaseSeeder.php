@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             'phone' => '0770000000',
             'password' => 'password',
             'role_id' => Role::SuperAdministrator,
+            'email_verified_at' => now(),
         ]);
 
         $this->call([

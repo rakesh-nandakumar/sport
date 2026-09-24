@@ -196,6 +196,9 @@ class BookingBuilder extends Component
         if (! auth()->check()) {
             return redirect()->route('login');
         }
+        if (! auth()->user()->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
+        }
         if (! $this->planIsValid()) {
             $this->showCheckout = false;
 
@@ -235,6 +238,7 @@ class BookingBuilder extends Component
                 'nic_front_path' => $identity['nicFront']->store('identity-documents/'.auth()->id(), 'local'),
                 'nic_back_path' => $identity['nicBack']->store('identity-documents/'.auth()->id(), 'local'),
             ]);
+            auth()->user()->refresh();
         }
 
         $game = $this->gameId ? $this->service->games->firstWhere('id', $this->gameId) : null;
@@ -253,6 +257,8 @@ class BookingBuilder extends Component
                     'notes' => $data['notes'] ?: null,
                     'players' => $this->players,
                     'bank_reference' => $data['bankReference'] ?: null,
+                    'nic_front_path' => $method === PaymentMethod::PayAtVenue ? auth()->user()->nic_front_path : null,
+                    'nic_back_path' => $method === PaymentMethod::PayAtVenue ? auth()->user()->nic_back_path : null,
                 ],
                 game: $game,
             );

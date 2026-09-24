@@ -261,7 +261,7 @@
                     @elseif($paymentMethod === \App\Enums\PaymentMethod::PayAtVenue->value)
                         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                             <p class="font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>This is a provisional hold</p>
-                            <p class="mt-1 text-xs">A paid booking for the same slot can replace this hold until the venue confirms it. You will review this again, then upload front and back NIC photos before placing the booking.</p>
+                            <p class="mt-1 text-xs">A paid booking for the same slot can replace this hold until the venue confirms it. You will review this again before placing the booking@if(! auth()->user()?->hasNicOnFile()), then upload front and back NIC photos@endif.</p>
                         </div>
                     @endif
 
@@ -298,28 +298,35 @@
                         <p class="mt-1 text-xs">Pay at Venue is not a paid confirmation. Until the venue locks it, a bank transfer or online payment for the same time has priority.</p>
                     </div>
 
-                    <div>
-                        <h3 class="font-semibold text-gray-900">NIC verification is required</h3>
-                        <p class="mt-1 text-sm text-gray-600">There is no QR code for Pay at Venue. Bring your physical National Identity Card; the venue will compare it to these two images before check-in.</p>
-                        <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <p class="mb-2 text-sm font-medium text-gray-700">NIC front</p>
-                                <x-file-drop wire:model="nicFront" accept=".jpg,.jpeg,.png,image/*" :max-size="5" :camera="true" hint="Drag and drop, browse, scan, or take a photo · max 5 MB" />
-                                <span wire:loading wire:target="nicFront" class="mt-1 block text-xs text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Uploading…</span>
-                                @if($nicFront && ! $errors->has('nicFront'))<span class="mt-1 block text-xs text-emerald-700"><i class="fa-solid fa-check mr-1"></i>{{ $nicFront->getClientOriginalName() }}</span>@endif
-                                @error('nicFront')<span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>@enderror
-                            </div>
-                            <div>
-                                <p class="mb-2 text-sm font-medium text-gray-700">NIC back</p>
-                                <x-file-drop wire:model="nicBack" accept=".jpg,.jpeg,.png,image/*" :max-size="5" :camera="true" hint="Drag and drop, browse, scan, or take a photo · max 5 MB" />
-                                <span wire:loading wire:target="nicBack" class="mt-1 block text-xs text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Uploading…</span>
-                                @if($nicBack && ! $errors->has('nicBack'))<span class="mt-1 block text-xs text-emerald-700"><i class="fa-solid fa-check mr-1"></i>{{ $nicBack->getClientOriginalName() }}</span>@endif
-                                @error('nicBack')<span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>@enderror
+                    @if(! auth()->user()?->hasNicOnFile())
+                        <div>
+                            <h3 class="font-semibold text-gray-900">NIC verification is required</h3>
+                            <p class="mt-1 text-sm text-gray-600">There is no QR code for Pay at Venue. Bring your physical National Identity Card; the venue will compare it to these two images before check-in.</p>
+                            <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <p class="mb-2 text-sm font-medium text-gray-700">NIC front</p>
+                                    <x-file-drop wire:model="nicFront" accept=".jpg,.jpeg,.png,image/*" :max-size="5" :camera="true" hint="Drag and drop, browse, scan, or take a photo · max 5 MB" />
+                                    <span wire:loading wire:target="nicFront" class="mt-1 block text-xs text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Uploading…</span>
+                                    @if($nicFront && ! $errors->has('nicFront'))<span class="mt-1 block text-xs text-emerald-700"><i class="fa-solid fa-check mr-1"></i>{{ $nicFront->getClientOriginalName() }}</span>@endif
+                                    @error('nicFront')<span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>@enderror
+                                </div>
+                                <div>
+                                    <p class="mb-2 text-sm font-medium text-gray-700">NIC back</p>
+                                    <x-file-drop wire:model="nicBack" accept=".jpg,.jpeg,.png,image/*" :max-size="5" :camera="true" hint="Drag and drop, browse, scan, or take a photo · max 5 MB" />
+                                    <span wire:loading wire:target="nicBack" class="mt-1 block text-xs text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Uploading…</span>
+                                    @if($nicBack && ! $errors->has('nicBack'))<span class="mt-1 block text-xs text-emerald-700"><i class="fa-solid fa-check mr-1"></i>{{ $nicBack->getClientOriginalName() }}</span>@endif
+                                    @error('nicBack')<span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>@enderror
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    @else
+                        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                            <p class="font-semibold"><i class="fa-solid fa-circle-check mr-1"></i>NIC verification is already on file</p>
+                            <p class="mt-1 text-xs">Your saved NIC images will be used for this Pay at Venue booking, so you do not need to upload them again.</p>
+                        </div>
+                    @endif
 
-                    <p class="rounded-xl bg-gray-50 p-3 text-xs text-gray-600"><i class="fa-solid fa-shield-halved mr-1"></i>Your NIC images are kept privately for the booking and are visible only to you, the venue, and administrators. Repeated Pay at Venue cancellations or no-shows can suspend this payment option after {{ setting('payments.pay_at_venue_cancellation_limit') }} incidents; only an administrator can restore it.</p>
+                    <p class="rounded-xl bg-gray-50 p-3 text-xs text-gray-600"><i class="fa-solid fa-shield-halved mr-1"></i>Your NIC images are kept privately on your account and are visible only to you, the venue, and administrators for Pay at Venue bookings. Repeated Pay at Venue cancellations or no-shows can suspend this payment option after {{ setting('payments.pay_at_venue_cancellation_limit') }} incidents; only an administrator can restore it.</p>
 
                     <div class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <button type="button" wire:click="closePayAtVenueWarning" class="btn-ghost justify-center">Go back</button>

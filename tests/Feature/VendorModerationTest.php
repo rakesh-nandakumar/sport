@@ -22,7 +22,9 @@ use Database\Seeders\VenueSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -43,15 +45,18 @@ class VendorModerationTest extends TestCase
     public function test_vendor_application_collects_business_details_and_starts_pending(): void
     {
         Storage::fake('local');
+        Notification::fake();
 
         $this->get('/register/vendor')->assertOk()->assertSee('Business registration certificate')->assertSee('Owner / director NIC')->assertSee('District');
 
         $response = $this->post('/register/vendor', $this->application());
 
-        $response->assertRedirect(route('filament.vendor.pages.dashboard'));
+        $response->assertRedirect(route('verification.notice'));
         $user = User::where('email', 'owner@newarena.lk')->firstOrFail();
         $this->assertSame(Role::Vendor, $user->role_id);
         $this->assertSame(VendorStatus::Pending, $user->vendorStatus());
+        $this->assertNull($user->email_verified_at);
+        Notification::assertSentTo($user, VerifyEmail::class);
 
         $profile = $user->vendorProfile;
         $this->assertSame('New Arena (Pvt) Ltd', $profile->business_name);
@@ -65,7 +70,11 @@ class VendorModerationTest extends TestCase
         // Admin is told about it.
         $this->assertTrue($this->admin->fresh()->notifications->pluck('data.message')->contains(fn ($m) => str_contains($m, 'New vendor application')));
 
-        // The vendor sees their status, and can already prepare a venue.
+        // The vendor must verify their email before accessing the workspace.
+        $this->actingAs($user)->get(route('filament.vendor.pages.dashboard'))->assertRedirect(route('verification.notice'));
+        $user->markEmailAsVerified();
+
+        // Once verified, the vendor sees their status and can prepare a venue.
         $this->actingAs($user)->get(route('filament.vendor.pages.dashboard'))->assertOk()->assertSee('Pending review')->assertSee('reviewing your application');
         $this->actingAs($user)->get(route('filament.vendor.resources.venues.create'))->assertOk()->assertSee('New Arena (Pvt) Ltd');
     }

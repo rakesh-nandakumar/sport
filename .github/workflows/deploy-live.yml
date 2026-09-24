@@ -1,0 +1,212 @@
+name: Deploy to Live (pos.vellixglobal.com)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-live
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and Deploy (Live)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    env:
+      APP_URL: "https://entrypoint.vellixglobal.com"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore vendor-deployed marker
+        id: vendor-marker
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/vendor.hash
+          key: vendor-hash-live-${{ hashFiles('composer.lock') }}
+
+      - name: Determine if vendor needs to be deployed
+        id: vendor-check
+        run: |
+          if [ "${{ steps.vendor-marker.outputs.cache-hit }}" = "true" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "composer.lock unchanged since the last successful live deploy — vendor/ will be skipped."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "composer.lock changed (or no prior record) — vendor/ will be included in this deploy."
+          fi
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, bcmath, ctype, fileinfo, mysql, gd, zip, intl, exif, pcntl, dom, curl, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Prepare build-time .env
+        run: cp .env.example .env
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-nodev-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-nodev-
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Generate application key (build-time only)
+        run: php artisan key:generate --ansi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Install zip and lftp
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends zip lftp
+
+      - name: Archive project files
+        run: |
+          rm -f deploy.zip
+          EXCLUDES=(
+            -x ".git/*"
+            -x ".github/*"
+            -x "node_modules/*"
+            -x ".env"
+            -x ".env.*"
+            -x "storage/logs/*"
+            -x "tests/*"
+            -x "docs/*"
+            -x "ribundu-data/*"
+            -x "leolanka_filament"
+            -x "*.png"
+            -x "README.md"
+            -x "deploy.zip"
+          )
+          if [ "${{ steps.vendor-check.outputs.changed }}" = "false" ]; then
+            EXCLUDES+=(-x "vendor/*")
+            echo "Skipping vendor/ in archive — no dependency changes since last deploy."
+          else
+            echo "Including vendor/ in archive."
+          fi
+          zip -r deploy.zip . "${EXCLUDES[@]}"
+
+      - name: Create remote extractor script
+        run: |
+          cat << 'EOF' > unzip.php
+          <?php
+          // Target the project root folder (one level above public/)
+          $baseDir = dirname(__DIR__);
+          $zipFile = $baseDir . '/deploy.zip';
+
+          if (!file_exists($zipFile)) {
+              http_response_code(404);
+              echo "Zip file not found at: " . $zipFile;
+              exit;
+          }
+
+          $zip = new ZipArchive;
+          if ($zip->open($zipFile) !== TRUE) {
+              http_response_code(500);
+              echo "Failed to open zip archive.";
+              exit;
+          }
+
+          $success = $zip->extractTo($baseDir);
+          $zip->close();
+          @unlink($zipFile);
+
+          if (!$success) {
+              http_response_code(500);
+              echo "Extraction failed. Check cPanel directory permissions.";
+              exit;
+          }
+
+          // Clear Laravel caches (compiled views, bootstrap cache, cached config data)
+          $cachePaths = [
+              $baseDir . '/storage/framework/views/*.php',
+              $baseDir . '/bootstrap/cache/*.php',
+              $baseDir . '/storage/framework/cache/data/*/*',
+          ];
+          foreach ($cachePaths as $path) {
+              foreach (glob($path) ?: [] as $file) {
+                  if (is_file($file)) @unlink($file);
+              }
+          }
+
+          if (function_exists('opcache_reset')) {
+              opcache_reset();
+          }
+
+          @unlink(__FILE__);
+          echo "Extraction and cache clear successful!";
+          EOF
+
+      - name: Upload build to cPanel (Live)
+        env:
+          FTP_SERVER: "business196.web-hosting.com"
+          FTP_USERNAME: "sport@entrypoint.vellixglobal.com"
+          FTP_PASSWORD: "9so&{jL~ty?g.g$L"
+        run: |
+          if [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "::error::Missing FTP_USERNAME or FTP_PASSWORD"
+            exit 1
+          fi
+
+          if ! getent hosts "$FTP_SERVER" > /dev/null; then
+            echo "::error::FTP server '$FTP_SERVER' could not be resolved."
+            exit 1
+          fi
+
+          lftp -c "
+            set ftp:ssl-force true;
+            set ftp:ssl-protect-data true;
+            set ftp:passive-mode true;
+            set net:timeout 30;
+            set net:max-retries 3;
+            set net:reconnect-interval-base 5;
+
+            open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_SERVER\";
+
+            put deploy.zip;
+            put unzip.php -o public/unzip.php;
+          "
+
+      - name: Trigger remote extraction
+        run: |
+          echo "Triggering remote extraction and cache clear..."
+          response=$(curl -fsSL --retry 3 --retry-delay 5 --max-time 60 "${APP_URL}/unzip.php")
+          echo "$response"
+
+          if ! echo "$response" | grep -q "successful"; then
+            echo "::error::Remote extraction did not report success."
+            exit 1
+          fi
+
+          echo "Deployment to Live complete!"
+
+      - name: Record successful vendor deployment
+        if: steps.vendor-check.outputs.changed == 'true'
+        run: echo "${{ hashFiles('composer.lock') }}" > "${{ runner.temp }}/vendor.hash"

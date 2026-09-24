@@ -37,7 +37,7 @@ class VenueSeeder extends Seeder
         $owners = [];
         $businessNames = [];
         foreach ($vendors as $email => [$name, $phone, $business]) {
-            $owners[$email] = User::updateOrCreate(['email' => $email], ['name' => $name, 'phone' => $phone, 'password' => 'password', 'role_id' => Role::Vendor]);
+            $owners[$email] = User::updateOrCreate(['email' => $email], ['name' => $name, 'phone' => $phone, 'password' => 'password', 'role_id' => Role::Vendor, 'email_verified_at' => now()]);
             $businessNames[$email] = $business;
         }
 

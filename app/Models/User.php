@@ -7,17 +7,18 @@ use App\Enums\Role;
 use App\Enums\VendorStatus;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'phone', 'password', 'role_id', 'latitude', 'longitude', 'location_label', 'location_updated_at', 'pay_at_venue_banned_at', 'pay_at_venue_ban_note', 'nic_front_path', 'nic_back_path'];
+    protected $fillable = ['name', 'email', 'email_verified_at', 'phone', 'password', 'role_id', 'google_id', 'latitude', 'longitude', 'location_label', 'location_updated_at', 'pay_at_venue_banned_at', 'pay_at_venue_ban_note', 'nic_front_path', 'nic_back_path'];
 
     protected $hidden = ['password', 'remember_token'];
 
