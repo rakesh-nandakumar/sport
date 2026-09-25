@@ -267,7 +267,7 @@
                                     <span class="flex-1">
                                         <span class="flex flex-wrap items-center gap-2">
                                             <span class="font-semibold text-gray-900">{{ $m->label() }}</span>
-                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $on ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600' }}">{{ $restricted ? 'Restricted for this account' : $m->availabilityLabel() }}</span>
+                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $on ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600' }}">{{ $restricted ? 'Restricted for this account' : ($m->isAvailable() && ! $on ? 'Unavailable at this venue' : $m->availabilityLabel()) }}</span>
                                             <span class="ml-auto text-[11px] text-gray-400">{{ $m->priority() === 1 ? 'Slot may be replaced by a paid booking' : 'Confirms your slot' }}</span>
                                         </span>
                                         <span class="mt-1 block text-xs text-gray-500">{{ $m->description() }}</span>

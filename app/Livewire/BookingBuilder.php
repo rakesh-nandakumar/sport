@@ -223,7 +223,7 @@ class BookingBuilder extends Component
             : ($available[0]->value ?? '');
 
         if (! $this->paymentMethod) {
-            $this->error = 'No payment method is currently available for this account. Please contact support.';
+            $this->error = 'No payment method is currently available for this account at this venue. Please contact support.';
 
             return;
         }
@@ -306,7 +306,7 @@ class BookingBuilder extends Component
         $data = $this->validatedCheckoutData();
 
         $method = PaymentMethod::from($data['paymentMethod']);
-        if (! $method->isAvailable()) {
+        if (! $this->service->venue->fresh()->allowsPaymentMethod($method)) {
             $this->addError('paymentMethod', $method->label().' is not available right now.');
 
             return;
@@ -404,7 +404,7 @@ class BookingBuilder extends Component
 
     public function canUsePaymentMethod(PaymentMethod $method): bool
     {
-        return $method->isAvailable()
+        return $this->service->venue->allowsPaymentMethod($method)
             && ! ($method === PaymentMethod::PayAtVenue && auth()->user()?->isPayAtVenueBanned());
     }
 

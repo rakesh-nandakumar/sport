@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentMethod;
 use App\Enums\Role;
 use App\Enums\VendorStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -26,6 +27,7 @@ class Venue extends Model
     {
         return [
             'gallery' => 'array',
+            'allowed_payment_methods' => 'array',
             'amenities' => 'array',
             'is_approved' => 'boolean',
             'is_featured' => 'boolean',
@@ -162,6 +164,12 @@ class Venue extends Model
     public function hasBankDetails(): bool
     {
         return (bool) ($this->bank_name && $this->bank_account_number);
+    }
+
+    public function allowsPaymentMethod(PaymentMethod $method): bool
+    {
+        return $method->isAvailable()
+            && ($this->allowed_payment_methods === null || in_array($method->value, $this->allowed_payment_methods, true));
     }
 
     public function hasCoordinates(): bool

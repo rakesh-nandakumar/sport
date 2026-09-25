@@ -207,6 +207,38 @@ class VendorModerationTest extends TestCase
             ->assertHasFormErrors(['payments_enabled']);
     }
 
+    public function test_only_super_admin_can_set_payment_methods_for_an_individual_venue(): void
+    {
+        $venue = Venue::firstOrFail();
+        $other = Venue::where('user_id', $venue->user_id)->whereKeyNot($venue->id)->firstOrFail();
+
+        Livewire::actingAs($this->admin)->test(ListVenues::class)
+            ->callTableAction('managePaymentMethods', $venue, data: ['allowed_payment_methods' => ['bank_transfer']])
+            ->assertHasNoTableActionErrors();
+
+        $this->assertSame(['bank_transfer'], $venue->fresh()->allowed_payment_methods);
+        $this->assertNull($other->fresh()->allowed_payment_methods);
+
+        Livewire::actingAs($this->admin)->test(ListVenues::class)
+            ->callTableAction('managePaymentMethods', $venue, data: ['allowed_payment_methods' => []])
+            ->assertHasTableActionErrors(['allowed_payment_methods']);
+
+        Livewire::actingAs($this->admin)->test(ListVenues::class)
+            ->callTableAction('managePaymentMethods', $venue, data: ['allowed_payment_methods' => ['card']])
+            ->assertHasTableActionErrors(['allowed_payment_methods']);
+
+        $this->actingAs($this->admin)->get(route('filament.admin.resources.venues.view', $venue))
+            ->assertOk()->assertSee('Allowed payment methods')->assertSee('Bank Transfer');
+
+        Livewire::actingAs(User::factory()->create(['role_id' => Role::Moderator]))->test(ListVenues::class)
+            ->assertTableActionHidden('managePaymentMethods', $venue)
+            ->callTableAction('managePaymentMethods', $venue, data: ['allowed_payment_methods' => ['pay_at_venue']]);
+
+        $this->assertSame(['bank_transfer'], $venue->fresh()->allowed_payment_methods);
+        $this->assertFalse($venue->isFillable('allowed_payment_methods'));
+        $this->actingAs($venue->owner)->get(route('filament.admin.resources.venues.view', $venue))->assertForbidden();
+    }
+
     public function test_activity_type_photo_can_be_uploaded_by_admin(): void
     {
         Storage::fake('public');

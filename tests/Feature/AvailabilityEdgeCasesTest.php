@@ -326,6 +326,44 @@ class AvailabilityEdgeCasesTest extends TestCase
         $this->assertFalse(PaymentMethod::Card->isAvailable());
     }
 
+    public function test_venue_payment_restrictions_apply_to_checkout_and_stale_booking_requests(): void
+    {
+        $court = $this->service('Rooftop Court');
+        $venue = $court->venue;
+        $venue->allowed_payment_methods = ['bank_transfer'];
+        $venue->save();
+
+        $this->actingAs(User::factory()->create(['role_id' => Role::Customer]));
+        Livewire::test(BookingBuilder::class, ['service' => $court])
+            ->call('selectDate', '2026-09-15')
+            ->call('selectTime', '2026-09-15 12:00:00')
+            ->call('checkout')
+            ->assertSet('paymentMethod', 'bank_transfer')
+            ->assertSee('Unavailable at this venue')
+            ->call('selectPaymentMethod', 'pay_at_venue')
+            ->assertSet('paymentMethod', 'bank_transfer');
+
+        $this->reserve($court, '2026-09-15 12:00:00', 1, method: PaymentMethod::BankTransfer);
+        $venue->allowed_payment_methods = ['pay_at_venue'];
+        $venue->save();
+
+        try {
+            $this->reserve($court, '2026-09-15 14:00:00', 1, method: PaymentMethod::BankTransfer);
+            $this->fail('A stale venue setting allowed a forbidden method');
+        } catch (SlotUnavailableException $e) {
+            $this->assertStringContainsString('not available at this venue', $e->getMessage());
+        }
+        $this->assertSame(1, Booking::count());
+
+        Settings::set('payments.enabled', ['bank_transfer']);
+        $this->assertFalse($venue->allowsPaymentMethod(PaymentMethod::PayAtVenue));
+        Livewire::test(BookingBuilder::class, ['service' => $court->fresh()])
+            ->call('selectDate', '2026-09-15')
+            ->call('selectTime', '2026-09-15 14:00:00')
+            ->call('checkout')
+            ->assertSet('showCheckout', false);
+    }
+
     public function test_a_selected_start_time_that_gets_taken_is_dropped_on_refresh(): void
     {
         $court = $this->service('Rooftop Court');

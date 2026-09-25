@@ -58,19 +58,12 @@
         <a href="{{ route('venues.index') }}" style="--i:1;">Venues</a>
         @auth
             <a href="{{ route('bookings.index') }}" style="--i:2;">My bookings</a>
-            <a href="{{ route('notifications.index') }}" style="--i:3;" class="relative">
-                Notifications
-                @php($unread = auth()->user()->unreadNotifications()->count())
-                @if($unread)
-                    <span class="nav-badge">{{ $unread > 9 ? '9+' : $unread }}</span>
-                @endif
-            </a>
             @if(auth()->user()->isVendor())
-                <a href="{{ route('filament.vendor.pages.dashboard') }}" style="--i:4;">Vendor panel</a>
+                <a href="{{ route('filament.vendor.pages.dashboard') }}" style="--i:3;">Vendor panel</a>
             @elseif(auth()->user()->isAdmin() || auth()->user()->isStaff())
-                <a href="{{ route('filament.admin.pages.dashboard') }}" style="--i:4;">Admin</a>
+                <a href="{{ route('filament.admin.pages.dashboard') }}" style="--i:3;">Admin</a>
             @endif
-            <form class="inline" method="POST" action="{{ route('logout') }}" style="--i:5;">
+            <form class="inline" method="POST" action="{{ route('logout') }}" style="--i:4;">
                 @csrf
                 <button type="submit" class="nav-logout"><i class="fa-solid fa-right-from-bracket mr-1"></i>Log out</button>
             </form>
@@ -80,6 +73,48 @@
             <a href="{{ route('register.vendor') }}" style="--i:4;" class="nav-cta">List your venue</a>
         @endauth
     </nav>
+
+    @auth
+        @php($notifUnread = auth()->user()->unreadNotifications()->count())
+        @php($notifPreview = auth()->user()->unreadNotifications()->latest()->take(5)->get())
+        <div class="notif-wrap">
+            <button type="button" class="notif-bell" id="notifBell" aria-haspopup="true" aria-expanded="false" aria-label="Notifications, {{ $notifUnread }} unread">
+                <i class="fa-solid fa-bell"></i>
+                @if($notifUnread)
+                    <span class="nav-badge">{{ $notifUnread > 9 ? '9+' : $notifUnread }}</span>
+                @endif
+            </button>
+            <div class="notif-drop" id="notifDrop" role="menu" aria-labelledby="notifBell" hidden>
+                <div class="notif-drop-head">
+                    <span class="notif-drop-title">Notifications{{ $notifUnread ? " ({$notifUnread})" : '' }}</span>
+                    @if($notifUnread)
+                        <form method="POST" action="{{ route('notifications.read-all') }}">
+                            @csrf
+                            <button class="notif-mark">Mark all read</button>
+                        </form>
+                    @endif
+                </div>
+                <div class="notif-drop-list">
+                    @forelse($notifPreview as $n)
+                        @php($notifType = $n->data['type'] ?? 'system')
+                        <a href="{{ $n->data['link'] ?? route('notifications.index') }}" class="notif-item">
+                            <span class="notif-ico {{ $notifType === 'success' ? 'is-success' : ($notifType === 'danger' ? 'is-danger' : '') }}">
+                                <i class="{{ $n->data['icon'] ?? 'fa-solid fa-bell' }}"></i>
+                            </span>
+                            <span class="notif-body">
+                                <span class="notif-msg">{{ $n->data['message'] }}</span>
+                                <span class="notif-time">{{ $n->created_at->diffForHumans() }}@if($n->data['booking_reference'] ?? false) · {{ $n->data['booking_reference'] }}@endif</span>
+                            </span>
+                            <span class="notif-dot" aria-hidden="true"></span>
+                        </a>
+                    @empty
+                        <p class="notif-empty">You're all caught up.</p>
+                    @endforelse
+                </div>
+                <a href="{{ route('notifications.index') }}" class="notif-view-all">View all</a>
+            </div>
+        </div>
+    @endauth
 </header>
 
 <main class="@yield('main-class', 'pt-24 md:pt-28 min-h-screen')">
@@ -126,6 +161,21 @@
             sessionStorage.setItem('ep_loc_asked', '1');
             window.epRequestLocation();
         } catch (e) {}
+    })();
+    // Notification bell preview dropdown: toggle on click, close on outside click / Escape.
+    (function () {
+        var bell = document.getElementById('notifBell');
+        var drop = document.getElementById('notifDrop');
+        if (! bell || ! drop) return;
+        function close() { drop.hidden = true; bell.setAttribute('aria-expanded', 'false'); }
+        function open() { drop.hidden = false; bell.setAttribute('aria-expanded', 'true'); }
+        bell.addEventListener('click', function (e) {
+            e.stopPropagation();
+            drop.hidden ? open() : close();
+        });
+        drop.addEventListener('click', function (e) { e.stopPropagation(); });
+        document.addEventListener('click', close);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
     })();
 </script>
 @stack('scripts')

@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Venues\Schemas;
 
+use App\Enums\PaymentMethod;
+use App\Models\Venue;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -61,6 +63,13 @@ class VenueInfolist
                 Section::make('Bank details')
                     ->columns(2)
                     ->schema([
+                        TextEntry::make('allowed_payment_methods')
+                            ->label('Allowed payment methods')
+                            ->state(fn (Venue $record) => $record->allowed_payment_methods === null
+                                ? 'Uses site defaults'
+                                : collect($record->allowed_payment_methods)->map(fn (string $value) => PaymentMethod::tryFrom($value)?->label() ?? $value)->join(', '))
+                            ->helperText('Managed by the Super Administrator. Site-wide restrictions also apply.')
+                            ->columnSpanFull(),
                         TextEntry::make('bank_name')->placeholder('—'),
                         TextEntry::make('bank_branch')->placeholder('—'),
                         TextEntry::make('bank_account_name')->placeholder('—'),

@@ -14,6 +14,7 @@ use App\Models\Payment;
 use App\Models\Service;
 use App\Models\ServiceOption;
 use App\Models\User;
+use App\Models\Venue;
 use App\Notifications\BookingNotification;
 use App\Notifications\CriticalNotification;
 use Carbon\CarbonInterface;
@@ -84,6 +85,11 @@ class BookingService
         $venueId = $prepared->first()['service']->venue_id;
 
         $result = DB::transaction(function () use ($customer, $prepared, $method, $details, $paymentStatus, $priority, $holdExpiresAt, $total, $venueId) {
+            $venue = Venue::query()->lockForUpdate()->findOrFail($venueId);
+            if (! $venue->allowsPaymentMethod($method)) {
+                throw new SlotUnavailableException($method->label().' is not available at this venue. Please choose another payment method.');
+            }
+
             $order = BookingOrder::create([
                 'user_id' => $customer->id,
                 'venue_id' => $venueId,

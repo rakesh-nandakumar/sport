@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Venues\Tables;
 
 use App\Enums\VendorStatus;
+use App\Filament\Resources\Venues\Actions\ManagePaymentMethods;
 use App\Filament\Resources\Venues\VenueResource;
 use App\Models\Venue;
 use Filament\Actions\Action;
@@ -81,6 +82,7 @@ class VenuesTable
             ])
             ->recordActions([
                 ViewAction::make(),
+                ManagePaymentMethods::make(),
                 Action::make('toggleApproval')
                     ->label(fn (Venue $record) => $record->is_approved ? 'Hide' : 'Approve')
                     ->icon(fn (Venue $record) => $record->is_approved ? 'heroicon-o-eye-slash' : 'heroicon-o-check-circle')
