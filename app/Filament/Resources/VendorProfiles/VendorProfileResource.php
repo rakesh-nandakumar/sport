@@ -8,7 +8,7 @@ use App\Filament\Resources\VendorProfiles\Pages\ViewVendorProfile;
 use App\Filament\Resources\VendorProfiles\Schemas\VendorProfileInfolist;
 use App\Filament\Resources\VendorProfiles\Tables\VendorProfilesTable;
 use App\Models\VendorProfile;
-use App\Notifications\BookingNotification;
+use App\Notifications\CriticalNotification;
 use App\Support\Impersonation;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -154,11 +154,24 @@ class VendorProfileResource extends Resource
             VendorStatus::Pending => 'Your vendor account has been put back into review.',
         };
 
-        $record->user->notify(new BookingNotification(
+        $record->user->notify(new CriticalNotification(
+            match ($status) {
+                VendorStatus::Active => 'Your vendor account is active',
+                VendorStatus::Suspended => 'Your vendor account has been suspended',
+                VendorStatus::Rejected => 'Your vendor application was not approved',
+                VendorStatus::Pending => 'Your vendor account is under review',
+            },
             $message,
             $status === VendorStatus::Active ? 'success' : 'danger',
             null,
             route('filament.vendor.pages.dashboard'),
+            'Open vendor workspace',
+            array_filter([
+                $message,
+                $status === VendorStatus::Active
+                    ? 'You can now manage your venues, services, and bookings from your vendor workspace.'
+                    : 'Open your vendor workspace to review the status and contact support if you need help.',
+            ]),
         ));
 
         Notification::make()

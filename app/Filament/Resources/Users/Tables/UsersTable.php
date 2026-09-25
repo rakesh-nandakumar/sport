@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Tables;
 
 use App\Enums\Role;
 use App\Models\User;
+use App\Notifications\BookingNotification;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -79,6 +80,12 @@ class UsersTable
                     ->modalDescription(fn (User $record) => 'Lift the Pay at Venue restriction for '.$record->name.'? Their account note will record that an administrator restored access.')
                     ->action(function (User $record): void {
                         $record->unbanPayAtVenue();
+                        $record->notify(new BookingNotification(
+                            'Pay at Venue has been restored on your account. You can use it for future eligible bookings.',
+                            'success',
+                            null,
+                            route('bookings.index'),
+                        ));
                         Notification::make()->success()->title('Pay at Venue restored for '.$record->name.'.')->send();
                     }),
                 DeleteAction::make()

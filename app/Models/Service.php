@@ -16,7 +16,7 @@ class Service extends Model
 
     protected $fillable = [
         'venue_id', 'activity_type_id', 'name', 'description', 'image',
-        'slot_minutes', 'min_slots', 'max_slots', 'buffer_minutes', 'lead_time_minutes',
+        'slot_minutes', 'game_minutes_per_title', 'min_slots', 'max_slots', 'buffer_minutes', 'lead_time_minutes',
         'max_players', 'opens_at', 'closes_at', 'is_active',
     ];
 
@@ -68,6 +68,15 @@ class Service extends Model
     public function requiresGame(): bool
     {
         return $this->activityType->requires_game && $this->games->isNotEmpty();
+    }
+
+    /** A short session has one title; longer sessions can include several titles in a sensible rotation. */
+    public function maxGameSelections(int $slots): int
+    {
+        $minutes = $slots * $this->slot_minutes;
+        $minutesPerTitle = max(1, (int) ($this->game_minutes_per_title ?: 45));
+
+        return max(1, intdiv($minutes, $minutesPerTitle));
     }
 
     public function imageUrl(): string

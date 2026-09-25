@@ -4,12 +4,14 @@ namespace App\Livewire;
 
 use App\Enums\PaymentMethod;
 use App\Exceptions\SlotUnavailableException;
+use App\Models\Game;
 use App\Models\Service;
 use App\Services\AvailabilityService;
 use App\Services\BookingService;
 use App\Services\PricingService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -23,6 +25,9 @@ class BookingBuilder extends Component
     public int $optionId;
 
     public ?int $gameId = null;
+
+    /** @var array<int, int> Selected games. gameId remains as the first selection for legacy links/tests. */
+    public array $gameIds = [];
 
     /** Session day (Y-m-d). For venues closing after midnight the 01:00 slot still belongs to this day. */
     public string $date;
@@ -38,6 +43,9 @@ class BookingBuilder extends Component
 
     // Checkout modal
     public bool $showCheckout = false;
+
+    /** booking = current activity only; order = every saved activity at this venue. */
+    public string $checkoutMode = 'booking';
 
     /** A second, explicit acknowledgement for the provisional Pay at Venue path. */
     public bool $showPayAtVenueWarning = false;
@@ -99,6 +107,30 @@ class BookingBuilder extends Component
         }
     }
 
+    public function toggleGame(int $gameId): void
+    {
+        if (! $this->service->games->contains('id', $gameId)) {
+            return;
+        }
+
+        if (in_array($gameId, $this->gameIds, true)) {
+            $this->gameIds = array_values(array_filter($this->gameIds, fn (int $id) => $id !== $gameId));
+        } else {
+            $this->gameIds[] = $gameId;
+        }
+
+        $this->gameIds = array_values(array_unique(array_map('intval', $this->gameIds)));
+        $this->gameId = $this->gameIds[0] ?? null;
+        $this->error = '';
+    }
+
+    public function updatedGameId(): void
+    {
+        if ($this->gameId && $this->service->games->contains('id', $this->gameId)) {
+            $this->gameIds = [(int) $this->gameId];
+        }
+    }
+
     public function incrementSlots(): void
     {
         if ($this->blocks < $this->maxSlots()) {
@@ -126,6 +158,65 @@ class BookingBuilder extends Component
             return;
         }
 
+        $this->checkoutMode = 'booking';
+        $this->openCheckout();
+    }
+
+    /** Save this configured activity, then let the customer add another activity at this venue. */
+    public function addToVenueOrder(): void
+    {
+        if (! $this->planIsValid()) {
+            return;
+        }
+
+        $entry = [
+            'key' => $this->cartItemKey(),
+            'service_id' => $this->service->id,
+            'option_id' => $this->option()->id,
+            'start_at' => $this->startAt,
+            'slots' => $this->blocks,
+            'players' => $this->players,
+            'game_ids' => $this->selectedGames()->pluck('id')->all(),
+        ];
+        $entries = collect($this->cartEntries())
+            ->reject(fn (array $item) => $item['key'] === $entry['key'])
+            ->push($entry)
+            ->values()
+            ->all();
+        session()->put($this->cartSessionKey(), $entries);
+
+        $this->error = '';
+    }
+
+    public function removeFromVenueOrder(string $key): void
+    {
+        session()->put($this->cartSessionKey(), collect($this->cartEntries())
+            ->reject(fn (array $item) => $item['key'] === $key)
+            ->values()
+            ->all());
+    }
+
+    public function checkoutVenueOrder()
+    {
+        if (! auth()->check()) {
+            session()->put('url.intended', route('booking.build', $this->service));
+
+            return redirect()->route('login')->with('message', 'Log in or create a free account to finish your venue order.');
+        }
+
+        if ($this->cartBookingItems() === []) {
+            $this->error = 'Add an activity to your venue order before checking out.';
+
+            return;
+        }
+
+        $this->checkoutMode = 'order';
+        $this->openCheckout();
+    }
+
+    protected function openCheckout(): void
+    {
+
         $available = array_values(array_filter(PaymentMethod::available(), fn (PaymentMethod $method) => $this->canUsePaymentMethod($method)));
         $this->paymentMethod = $this->paymentMethod && ($method = PaymentMethod::tryFrom($this->paymentMethod)) && $this->canUsePaymentMethod($method)
             ? $this->paymentMethod
@@ -144,6 +235,7 @@ class BookingBuilder extends Component
     {
         $this->showCheckout = false;
         $this->showPayAtVenueWarning = false;
+        $this->checkoutMode = 'booking';
     }
 
     public function selectPaymentMethod(string $method): void
@@ -199,8 +291,14 @@ class BookingBuilder extends Component
         if (! auth()->user()->hasVerifiedEmail()) {
             return redirect()->route('verification.notice');
         }
-        if (! $this->planIsValid()) {
+        if ($this->checkoutMode === 'booking' && ! $this->planIsValid()) {
             $this->showCheckout = false;
+
+            return;
+        }
+        if ($this->checkoutMode === 'order' && $this->cartBookingItems() === []) {
+            $this->showCheckout = false;
+            $this->error = 'Your venue order is empty. Add an activity before checking out.';
 
             return;
         }
@@ -241,27 +339,32 @@ class BookingBuilder extends Component
             auth()->user()->refresh();
         }
 
-        $game = $this->gameId ? $this->service->games->firstWhere('id', $this->gameId) : null;
-
         try {
-            $booking = app(BookingService::class)->reserve(
-                customer: auth()->user(),
-                service: $this->service,
-                option: $this->option(),
-                start: $this->startsAt(),
-                slots: $this->blocks,
-                method: $method,
-                details: [
-                    'customer_name' => $data['customerName'],
-                    'customer_phone' => $data['customerPhone'],
-                    'notes' => $data['notes'] ?: null,
-                    'players' => $this->players,
-                    'bank_reference' => $data['bankReference'] ?: null,
-                    'nic_front_path' => $method === PaymentMethod::PayAtVenue ? auth()->user()->nic_front_path : null,
-                    'nic_back_path' => $method === PaymentMethod::PayAtVenue ? auth()->user()->nic_back_path : null,
-                ],
-                game: $game,
-            );
+            $details = [
+                'customer_name' => $data['customerName'],
+                'customer_phone' => $data['customerPhone'],
+                'notes' => $data['notes'] ?: null,
+                'players' => $this->players,
+                'bank_reference' => $data['bankReference'] ?: null,
+                'nic_front_path' => $method === PaymentMethod::PayAtVenue ? auth()->user()->nic_front_path : null,
+                'nic_back_path' => $method === PaymentMethod::PayAtVenue ? auth()->user()->nic_back_path : null,
+            ];
+            if ($this->checkoutMode === 'order') {
+                $bookings = app(BookingService::class)->reserveMany(auth()->user(), $this->cartBookingItems(), $method, $details);
+                $booking = $bookings->first();
+                session()->forget($this->cartSessionKey());
+            } else {
+                $booking = app(BookingService::class)->reserve(
+                    customer: auth()->user(),
+                    service: $this->service,
+                    option: $this->option(),
+                    start: $this->startsAt(),
+                    slots: $this->blocks,
+                    method: $method,
+                    details: $details,
+                    games: $this->selectedGames(),
+                );
+            }
         } catch (SlotUnavailableException $e) {
             $this->showCheckout = false;
             $this->showPayAtVenueWarning = false;
@@ -276,7 +379,11 @@ class BookingBuilder extends Component
             app(BookingService::class)->attachProof($booking, $path, $data['bankReference'] ?: null);
         }
 
-        return redirect()->route('bookings.show', $booking)->with('message', 'Booking '.$booking->reference.' placed!');
+        $message = $this->checkoutMode === 'order'
+            ? 'Venue order '.$booking->order?->reference.' placed!'
+            : 'Booking '.$booking->reference.' placed!';
+
+        return redirect()->route('bookings.show', $booking)->with('message', $message);
     }
 
     /** @return array<string, mixed> */
@@ -322,6 +429,17 @@ class BookingBuilder extends Component
         $quote = $this->startAt
             ? app(PricingService::class)->quote($this->service, $option, $this->startsAt(), $this->blocks)
             : null;
+        $cartItems = $this->cartDisplayItems();
+        $cartTotal = $cartItems->sum(fn (array $item) => (float) $item['quote']['total']);
+        $checkoutQuote = $this->checkoutMode === 'order' && $cartItems->isNotEmpty()
+            ? [
+                'total' => $cartTotal,
+                'lines' => $cartItems->map(fn (array $item) => [
+                    'label' => $item['service']->name.' · '.$item['start']->format('D d M, h:i A'),
+                    'amount' => $item['quote']['total'],
+                ])->all(),
+            ]
+            : $quote;
 
         return view('livewire.booking-builder', [
             'option' => $option,
@@ -329,6 +447,9 @@ class BookingBuilder extends Component
             'timeSlots' => $slotsForDay,
             'maxSlots' => $maxSlots,
             'quote' => $quote,
+            'checkoutQuote' => $checkoutQuote,
+            'cartItems' => $cartItems,
+            'cartTotal' => $cartTotal,
             'startsAt' => $this->startAt ? $this->startsAt() : null,
             'endsAt' => $this->startAt ? $this->startsAt()->addMinutes($this->blocks * $this->service->slot_minutes) : null,
             'window' => $this->service->windowFor($day->dayOfWeek),
@@ -351,6 +472,19 @@ class BookingBuilder extends Component
             return false;
         }
 
+        if ($this->service->requiresGame() && $this->selectedGames()->count() !== count($this->gameIds)) {
+            $this->error = 'Choose games offered by this service.';
+
+            return false;
+        }
+
+        if ($this->service->requiresGame() && count($this->gameIds) > $this->service->maxGameSelections($this->blocks)) {
+            $maxGames = $this->service->maxGameSelections($this->blocks);
+            $this->error = "This session can include up to {$maxGames} ".Str::plural('game', $maxGames).'. Choose a longer session to add more.';
+
+            return false;
+        }
+
         $max = $this->maxSlots();
         if ($this->blocks < $this->service->min_slots || $this->blocks > $max) {
             $this->error = $max === 0
@@ -368,6 +502,93 @@ class BookingBuilder extends Component
     protected function option()
     {
         return $this->service->options->firstWhere('id', $this->optionId) ?? $this->service->defaultOption();
+    }
+
+    /** @return Collection<int, Game> */
+    protected function selectedGames()
+    {
+        return $this->service->games->whereIn('id', $this->gameIds)->values();
+    }
+
+    protected function cartSessionKey(): string
+    {
+        return 'booking-cart.'.$this->service->venue_id;
+    }
+
+    protected function cartItemKey(): string
+    {
+        return implode(':', [$this->service->id, $this->option()->id, $this->startAt]);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    protected function cartEntries(): array
+    {
+        return collect(session()->get($this->cartSessionKey(), []))
+            ->filter(fn ($item) => is_array($item) && isset($item['key'], $item['service_id'], $item['option_id'], $item['start_at'], $item['slots']))
+            ->values()
+            ->all();
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    protected function cartBookingItems(): array
+    {
+        $entries = $this->cartEntries();
+        if ($entries === []) {
+            return [];
+        }
+
+        $services = Service::with(['venue.hours', 'venue.owner', 'activityType', 'options', 'games', 'rates'])
+            ->whereKey(collect($entries)->pluck('service_id')->unique())
+            ->get()
+            ->keyBy('id');
+        $items = [];
+
+        foreach ($entries as $entry) {
+            /** @var Service|null $service */
+            $service = $services->get((int) $entry['service_id']);
+            $option = $service?->options->firstWhere('id', (int) $entry['option_id']);
+            if (! $service || ! $option) {
+                continue;
+            }
+
+            try {
+                $start = Carbon::parse($entry['start_at']);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            $items[] = [
+                'service' => $service,
+                'option' => $option,
+                'start' => $start,
+                'slots' => (int) $entry['slots'],
+                'players' => isset($entry['players']) ? (int) $entry['players'] : null,
+                'games' => array_map('intval', $entry['game_ids'] ?? []),
+            ];
+        }
+
+        return $items;
+    }
+
+    /** @return Collection<int, array<string, mixed>> */
+    protected function cartDisplayItems()
+    {
+        return collect($this->cartBookingItems())->map(function (array $item) {
+            $service = $item['service'];
+            $option = $item['option'];
+            $start = $item['start'];
+            $games = $service->games->whereIn('id', $item['games']);
+
+            return [
+                'key' => implode(':', [$service->id, $option->id, $start->toDateTimeString()]),
+                'service' => $service,
+                'option' => $option,
+                'start' => $start,
+                'end' => $start->copy()->addMinutes($item['slots'] * $service->slot_minutes),
+                'games' => $games,
+                'quote' => app(PricingService::class)->quote($service, $option, $start, $item['slots']),
+            ];
+        });
     }
 
     protected function startsAt(): Carbon

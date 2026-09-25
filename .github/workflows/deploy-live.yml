@@ -158,12 +158,29 @@ jobs:
               }
           }
 
+          // Run pending schema changes only after the new code and vendor files are in place.
+          // Calling Laravel's console kernel avoids relying on shell execution being enabled on cPanel.
+          try {
+              require $baseDir . '/vendor/autoload.php';
+              $app = require_once $baseDir . '/bootstrap/app.php';
+              $kernel = $app->make(\Illuminate\Contracts\Console\Kernel::class);
+              $exitCode = $kernel->call('migrate', ['--force' => true, '--no-interaction' => true]);
+
+              if ($exitCode !== 0) {
+                  throw new RuntimeException('Laravel migrations failed with exit code ' . $exitCode . '.');
+              }
+          } catch (Throwable $exception) {
+              http_response_code(500);
+              echo "Extraction completed, but migrations failed: " . $exception->getMessage();
+              exit;
+          }
+
           if (function_exists('opcache_reset')) {
               opcache_reset();
           }
 
           @unlink(__FILE__);
-          echo "Extraction and cache clear successful!";
+          echo "Extraction, cache clear, and migrations successful!";
           EOF
 
       - name: Upload build to cPanel (Live)

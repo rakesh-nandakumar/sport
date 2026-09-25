@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -19,7 +20,7 @@ class Booking extends Model
     use HasFactory;
 
     protected $fillable = [
-        'reference', 'qr_token', 'user_id', 'venue_id', 'service_id', 'service_option_id', 'game_id',
+        'reference', 'qr_token', 'booking_order_id', 'user_id', 'venue_id', 'service_id', 'service_option_id', 'game_id',
         'starts_at', 'ends_at', 'slots', 'players', 'unit_price', 'subtotal', 'discount', 'total',
         'price_breakdown', 'currency', 'status', 'payment_method', 'payment_status', 'priority',
         'customer_name', 'customer_phone', 'notes', 'vendor_confirmed_at', 'hold_expires_at', 'cancelled_at',
@@ -101,6 +102,16 @@ class Booking extends Model
     public function game(): BelongsTo
     {
         return $this->belongsTo(Game::class);
+    }
+
+    public function games(): BelongsToMany
+    {
+        return $this->belongsToMany(Game::class)->orderBy('name');
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(BookingOrder::class, 'booking_order_id');
     }
 
     public function payments(): HasMany

@@ -80,6 +80,14 @@ class ServiceForm
                             ->required()
                             ->default(60)
                             ->helperText('Smallest bookable unit.'),
+                        TextInput::make('game_minutes_per_title')
+                            ->label('Minutes per game title')
+                            ->numeric()
+                            ->minValue(15)
+                            ->maxValue(240)
+                            ->default(45)
+                            ->visible(fn (Get $get) => (bool) ActivityType::find($get('activity_type_id'))?->requires_game)
+                            ->helperText('Caps the number of games a customer can select for one session.'),
                         TextInput::make('min_slots')
                             ->label('Min blocks')
                             ->numeric()
@@ -207,7 +215,7 @@ class ServiceForm
     public static function serviceAttributes(array $data): array
     {
         return collect($data)->only([
-            'activity_type_id', 'name', 'description', 'image', 'slot_minutes', 'min_slots', 'max_slots',
+            'activity_type_id', 'name', 'description', 'image', 'slot_minutes', 'game_minutes_per_title', 'min_slots', 'max_slots',
             'buffer_minutes', 'lead_time_minutes', 'max_players', 'opens_at', 'closes_at', 'is_active',
         ])->all();
     }

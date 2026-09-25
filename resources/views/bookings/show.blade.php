@@ -25,12 +25,18 @@
 @section('content')
 <section class="mx-auto max-w-4xl px-4 pb-16">
     @php($isNew = session('message') && str_contains(session('message'), 'placed'))
+    @php($order = $booking->order)
+    @php($orderTotal = $order?->total ?? $booking->total)
+    @php($payment = $order?->payments->last() ?? $booking->payments->last())
 
     <div class="print-hero rounded-3xl {{ $booking->isActive() ? 'bg-gray-900' : 'bg-gray-600' }} p-8 text-white">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
                 <p class="text-sm uppercase tracking-[.3em] text-red-400">{{ $isNew ? 'Booking placed' : 'Booking' }}</p>
                 <h1 class="display mt-1 text-5xl md:text-6xl">{{ $booking->reference }}</h1>
+                @if($order && $order->bookings->count() > 1)
+                    <p class="mt-2 text-sm text-gray-300">Venue order <strong class="text-white">{{ $order->reference }}</strong> · {{ $order->bookings->count() }} activities · one payment</p>
+                @endif
                 <div class="mt-4 flex flex-wrap gap-2">
                     <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $booking->status->badge() }}">{{ $booking->status->label() }}</span>
                     <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $booking->payment_status->badge() }}">{{ $booking->payment_status->label() }}</span>
@@ -61,7 +67,7 @@
                 <h2 class="text-lg font-semibold text-gray-900">Booking details</h2>
                 <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                     <div><dt class="text-gray-500">Venue</dt><dd class="font-medium"><a href="{{ route('venues.show', $booking->venue) }}" class="hover:text-brand">{{ $booking->venue->name }}</a></dd><dd class="text-gray-500">{{ $booking->venue->address }}, {{ $booking->venue->city }}</dd></div>
-                    <div><dt class="text-gray-500">Service</dt><dd class="font-medium">{{ $booking->service->name }} · {{ $booking->option->name }}</dd>@if($booking->game)<dd class="text-gray-500"><i class="fa-solid fa-gamepad mr-1"></i>{{ $booking->game->name }}</dd>@endif</div>
+                    <div><dt class="text-gray-500">Service</dt><dd class="font-medium">{{ $booking->service->name }} · {{ $booking->option->name }}</dd>@php($games = $booking->games->isNotEmpty() ? $booking->games : collect([$booking->game])->filter())@if($games->isNotEmpty())<dd class="text-gray-500"><i class="fa-solid fa-gamepad mr-1"></i>{{ $games->pluck('name')->join(', ') }}</dd>@endif</div>
                     <div><dt class="text-gray-500">When</dt><dd class="font-medium">{{ $booking->starts_at->format('l, d M Y') }}</dd><dd class="text-gray-500">{{ $booking->starts_at->format('h:i A') }} – {{ $booking->ends_at->format('h:i A') }} ({{ $booking->durationLabel() }})</dd></div>
                     <div><dt class="text-gray-500">Booked for</dt><dd class="font-medium">{{ $booking->customer_name }}</dd><dd class="text-gray-500">{{ $booking->customer_phone }}@if($booking->players) · {{ $booking->players }} players @endif</dd></div>
                     @if($booking->notes)<div class="sm:col-span-2"><dt class="text-gray-500">Notes</dt><dd>{{ $booking->notes }}</dd></div>@endif
@@ -74,6 +80,24 @@
                 </div>
             </div>
 
+            @if($order && $order->bookings->count() > 1)
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="text-lg font-semibold text-gray-900">Venue order {{ $order->reference }}</h2>
+                        <span class="font-bold text-gray-900">{{ lkr($orderTotal) }} total</span>
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">These activities were availability-checked together and share one payment.</p>
+                    <ul class="mt-4 divide-y divide-gray-100 text-sm">
+                        @foreach($order->bookings as $item)
+                            <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+                                <div><p class="font-medium text-gray-900">{{ $item->service->name }} · {{ $item->option->name }}</p><p class="text-gray-500">{{ $item->starts_at->format('D d M, h:i A') }} – {{ $item->ends_at->format('h:i A') }}@if($item->games->isNotEmpty()) · {{ $item->games->pluck('name')->join(', ') }}@endif</p></div>
+                                <div class="text-right"><p class="font-semibold">{{ lkr($item->total) }}</p><a href="{{ route('bookings.show', $item) }}" class="text-xs font-semibold text-brand hover:underline">View QR</a></div>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             {{-- What happens next --}}
             @if($booking->isActive())
                 <div id="payment" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -83,7 +107,7 @@
                             <li>Your slot is on hold. The venue may call you to confirm — once they confirm, the slot is locked.</li>
                             <li>Until then, another customer who pays online or by bank transfer for the same slot can replace this hold. You'll be notified immediately if that happens.</li>
                             <li>Show your QR code at check-in and bring your physical NIC; the venue will compare it to the front and back images you submitted.</li>
-                            <li>Arrive a few minutes early, quote <strong>{{ $booking->reference }}</strong> and pay <strong>{{ lkr($booking->total) }}</strong> at the counter.</li>
+                            <li>Arrive a few minutes early, quote <strong>{{ $order?->reference ?? $booking->reference }}</strong> and pay <strong>{{ lkr($orderTotal) }}</strong> at the counter.</li>
                         </ol>
                     @elseif($booking->payment_method === \App\Enums\PaymentMethod::BankTransfer)
                         @if($booking->isAwaitingVerification())
@@ -94,7 +118,7 @@
                             </div>
                         @endif
                         <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-gray-600">
-                            <li>Transfer <strong>{{ lkr($booking->total) }}</strong> to the account below and use <strong>{{ $booking->reference }}</strong> as the remark.</li>
+                            <li>Transfer <strong>{{ lkr($orderTotal) }}</strong> to the account below and use <strong>{{ $order?->reference ?? $booking->reference }}</strong> as the remark.</li>
                             <li>Upload your slip here. The venue verifies it and your booking becomes <strong>Confirmed &amp; locked</strong>.</li>
                         </ol>
                         <div class="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
@@ -106,7 +130,6 @@
                                 <p>The venue hasn't published bank details yet — call {{ $booking->venue->phone }} to get them.</p>
                             @endif
                         </div>
-                        @php($payment = $booking->payments->last())
                         @if($payment?->proof_path && $booking->payment_status !== \App\Enums\PaymentStatus::Paid)
                             <p class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800"><i class="fa-solid fa-check mr-1"></i>Slip uploaded {{ $payment->updated_at->diffForHumans() }}@if($payment->reference) (ref {{ $payment->reference }})@endif. Waiting for the venue to verify.</p>
                         @endif

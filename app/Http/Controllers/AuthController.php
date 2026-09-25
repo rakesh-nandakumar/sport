@@ -8,6 +8,7 @@ use App\Filament\Resources\VendorProfiles\VendorProfileResource;
 use App\Models\ActivityType;
 use App\Models\User;
 use App\Notifications\BookingNotification;
+use App\Notifications\CriticalNotification;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -88,6 +89,12 @@ class AuthController extends Controller
             return $user;
         });
 
+        $user->notify(new BookingNotification(
+            'Welcome to '.config('app.name').'. Verify your email address to start booking.',
+            'success',
+            null,
+            route('verification.notice'),
+        ));
         event(new Registered($user));
         auth()->login($user);
 
@@ -161,6 +168,15 @@ class AuthController extends Controller
 
         auth()->login($user, true);
         $request->session()->regenerate();
+
+        if ($created) {
+            $user->notify(new BookingNotification(
+                'Welcome to '.config('app.name').'. Your Google account is ready to book activities.',
+                'success',
+                null,
+                route('venues.index'),
+            ));
+        }
 
         return redirect()->intended($user->isCustomer() ? '/' : $user->dashboardUrl())->with(
             'message',
@@ -260,6 +276,17 @@ class AuthController extends Controller
                 VendorProfileResource::getUrl('view', ['record' => $user->vendorProfile]),
             ));
         }
+
+        $user->notify(new CriticalNotification(
+            'We received your vendor application',
+            "Your application for {$data['business_name']} has been received and is awaiting review.",
+            'system',
+            mailLines: [
+                "We received your vendor application for {$data['business_name']} in {$data['city']}, {$data['district']}.",
+                'Our team will review the submitted details and documents. We will email you when your account status changes.',
+                'Please verify your email address first so you can access your vendor workspace once approved.',
+            ],
+        ));
 
         event(new Registered($user));
         auth()->login($user);

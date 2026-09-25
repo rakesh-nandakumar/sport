@@ -18,6 +18,18 @@
         </div>
     </div>
 
+    @if($venue->services->where('is_active', true)->where('id', '!=', $service->id)->isNotEmpty())
+        <div class="mt-5 rounded-2xl border border-brand/15 bg-brand/5 p-4">
+            <p class="text-sm font-semibold text-gray-900"><i class="fa-solid fa-bag-shopping mr-1 text-brand"></i>Build one venue order</p>
+            <p class="mt-1 text-sm text-gray-600">Add this activity, then choose another activity at {{ $venue->name }}. Everything is checked together and paid once.</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+                @foreach($venue->services->where('is_active', true)->where('id', '!=', $service->id) as $otherService)
+                    <a href="{{ route('booking.build', $otherService) }}" class="btn-ghost py-2 text-sm"><i class="{{ $otherService->activityType->icon }} mr-1"></i>Add {{ $otherService->name }}</a>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     @error('slot')
         <div class="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-700"><i class="fa-solid fa-triangle-exclamation mr-2"></i>{{ $message }}</div>
     @enderror

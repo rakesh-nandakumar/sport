@@ -22,7 +22,7 @@ class BookingController extends Controller
     public function build(Service $service): View
     {
         abort_unless($service->is_active && $service->venue->isLive(), 404);
-        $service->load(['venue.hours', 'activityType', 'options', 'games', 'rates']);
+        $service->load(['venue.hours', 'venue.services.activityType', 'activityType', 'options', 'games', 'rates']);
 
         return view('booking.build', ['service' => $service, 'venue' => $service->venue]);
     }
@@ -71,7 +71,10 @@ class BookingController extends Controller
     public function show(Request $request, Booking $booking): View
     {
         $this->authorizeView($request, $booking);
-        $booking->load(['venue', 'service', 'option', 'game', 'payments']);
+        $booking->load([
+            'venue', 'service', 'option', 'game', 'games', 'payments',
+            'order.bookings.service', 'order.bookings.option', 'order.bookings.games', 'order.payments',
+        ]);
 
         return view('bookings.show', ['booking' => $booking]);
     }

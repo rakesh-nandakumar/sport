@@ -36,12 +36,13 @@
             <section>
                 <h2 class="flex items-center gap-2 text-lg font-semibold text-gray-900">
                     <span class="grid h-7 w-7 place-items-center rounded-full bg-gray-900 text-xs text-white">2</span>
-                    Pick your game
+                    Pick your games
                 </h2>
+                <p class="mt-1 text-sm text-gray-500">Choose the titles you want in this session. The duration sets the limit: up to {{ $service->maxGameSelections($blocks) }} {{ Str::plural('title', $service->maxGameSelections($blocks)) }} for {{ minutes_label($blocks * $service->slot_minutes) }}.</p>
                 <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                     @foreach($service->games as $game)
-                        <button type="button" wire:click="$set('gameId', {{ $game->id }})"
-                                class="chip p-3 text-left {{ $gameId === $game->id ? 'is-selected' : '' }}">
+                        <button type="button" wire:click="toggleGame({{ $game->id }})"
+                                class="chip p-3 text-left {{ in_array($game->id, $gameIds, true) ? 'is-selected' : '' }}">
                             <i class="fa-solid fa-gamepad text-gray-400"></i>
                             <span class="mt-1 block text-sm font-semibold text-gray-900 leading-tight">{{ $game->name }}</span>
                             <span class="block text-[11px] text-gray-500">{{ $game->platform }}@if($game->max_players) · {{ $game->max_players }}P @endif</span>
@@ -138,8 +139,8 @@
             <div class="flex justify-between"><dt class="text-gray-500">Venue</dt><dd class="font-medium text-right">{{ $service->venue->name }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Service</dt><dd class="font-medium text-right">{{ $service->name }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Type</dt><dd class="font-medium text-right">{{ $option->name }}</dd></div>
-            @if($gameId)
-                <div class="flex justify-between"><dt class="text-gray-500">Game</dt><dd class="font-medium text-right">{{ $service->games->firstWhere('id', $gameId)?->name }}</dd></div>
+            @if(count($gameIds))
+                <div class="flex justify-between gap-4"><dt class="text-gray-500">Games</dt><dd class="font-medium text-right">{{ $service->games->whereIn('id', $gameIds)->pluck('name')->join(', ') }}</dd></div>
             @endif
             <div class="flex justify-between"><dt class="text-gray-500">Date</dt><dd class="font-medium text-right">{{ \Carbon\Carbon::parse($date)->format('D, d M Y') }}</dd></div>
             <div class="flex justify-between"><dt class="text-gray-500">Time</dt><dd class="font-medium text-right">{{ $startsAt ? $startsAt->format('h:i A').' – '.$endsAt->format('h:i A') : '—' }}</dd></div>
@@ -159,11 +160,41 @@
                 <p class="text-xs text-gray-500 lg:text-sm">{{ $startsAt ? $startsAt->format('D d M · h:i A') : 'Pick a time' }}</p>
                 <p class="text-2xl font-bold text-gray-900">{{ $quote ? lkr($quote['total']) : '—' }}</p>
             </div>
-            <button type="button" wire:click="checkout" wire:loading.attr="disabled" class="btn-brand">
-                <span wire:loading.remove wire:target="checkout">Checkout <i class="fa-solid fa-arrow-right"></i></span>
-                <span wire:loading wire:target="checkout"><i class="fa-solid fa-spinner fa-spin"></i> Please wait</span>
-            </button>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <button type="button" wire:click="addToVenueOrder" wire:loading.attr="disabled" class="btn-ghost text-xs">
+                    <span wire:loading.remove wire:target="addToVenueOrder"><i class="fa-solid fa-plus mr-1"></i>Add activity</span>
+                    <span wire:loading wire:target="addToVenueOrder"><i class="fa-solid fa-spinner fa-spin"></i></span>
+                </button>
+                <button type="button" wire:click="checkout" wire:loading.attr="disabled" class="btn-brand">
+                    <span wire:loading.remove wire:target="checkout">Book this <i class="fa-solid fa-arrow-right"></i></span>
+                    <span wire:loading wire:target="checkout"><i class="fa-solid fa-spinner fa-spin"></i> Please wait</span>
+                </button>
+            </div>
         </div>
+        <p class="mt-2 text-xs text-gray-500">Adding an activity keeps it in one venue order. You can choose another activity and pay once.</p>
+        @if($cartItems->isNotEmpty())
+            <div class="mt-4 border-t border-gray-100 pt-4">
+                <div class="flex items-center justify-between gap-3">
+                    <h4 class="font-semibold text-gray-900"><i class="fa-solid fa-bag-shopping mr-1 text-brand"></i>Venue order ({{ $cartItems->count() }})</h4>
+                    <span class="font-bold text-gray-900">{{ lkr($cartTotal) }}</span>
+                </div>
+                <ul class="mt-3 space-y-3 text-sm">
+                    @foreach($cartItems as $item)
+                        <li class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="truncate font-medium text-gray-900">{{ $item['service']->name }} <span class="font-normal text-gray-500">· {{ $item['option']->name }}</span></p>
+                                <p class="text-xs text-gray-500">{{ $item['start']->format('D d M · h:i A') }} – {{ $item['end']->format('h:i A') }}@if($item['games']->isNotEmpty()) · {{ $item['games']->pluck('name')->join(', ') }}@endif</p>
+                            </div>
+                            <button type="button" wire:click="removeFromVenueOrder('{{ $item['key'] }}')" class="shrink-0 text-xs text-rose-600 hover:underline">Remove</button>
+                        </li>
+                    @endforeach
+                </ul>
+                <button type="button" wire:click="checkoutVenueOrder" wire:loading.attr="disabled" class="btn-brand mt-4 w-full justify-center">
+                    <span wire:loading.remove wire:target="checkoutVenueOrder">Checkout venue order · {{ lkr($cartTotal) }}</span>
+                    <span wire:loading wire:target="checkoutVenueOrder"><i class="fa-solid fa-spinner fa-spin"></i> Please wait</span>
+                </button>
+            </div>
+        @endif
         @if($error)
             <p class="mt-2 text-sm text-rose-600"><i class="fa-solid fa-circle-exclamation mr-1"></i>{{ $error }}</p>
         @endif
@@ -171,7 +202,7 @@
     </aside>
 
     {{-- Checkout / payment modal --}}
-    @if($showCheckout && $quote)
+    @if($showCheckout && $checkoutQuote)
         <div class="fixed inset-0 z-[100000] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
              wire:click.self="closeCheckout"
              x-data="{ init() { document.body.classList.add('overflow-hidden') }, destroy() { document.body.classList.remove('overflow-hidden') } }"
@@ -179,13 +210,27 @@
             <div class="max-h-[94vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:max-w-2xl sm:rounded-3xl" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
                 <div class="sticky top-0 z-10 flex items-start justify-between border-b border-gray-100 bg-white/95 px-6 py-4 backdrop-blur">
                     <div>
-                        <h2 id="checkout-title" class="display text-3xl text-gray-900">Complete your booking</h2>
-                        <p class="text-sm text-gray-500">{{ $service->name }} · {{ $startsAt->format('D d M') }}, {{ $startsAt->format('h:i A') }} – {{ $endsAt->format('h:i A') }} · <strong class="text-gray-900">{{ lkr($quote['total']) }}</strong></p>
+                        <h2 id="checkout-title" class="display text-3xl text-gray-900">Complete your {{ $checkoutMode === 'order' ? 'venue order' : 'booking' }}</h2>
+                        @if($checkoutMode === 'order')
+                            <p class="text-sm text-gray-500">{{ $cartItems->count() }} activities at {{ $service->venue->name }} · <strong class="text-gray-900">{{ lkr($checkoutQuote['total']) }}</strong></p>
+                        @else
+                            <p class="text-sm text-gray-500">{{ $service->name }} · {{ $startsAt->format('D d M') }}, {{ $startsAt->format('h:i A') }} – {{ $endsAt->format('h:i A') }} · <strong class="text-gray-900">{{ lkr($checkoutQuote['total']) }}</strong></p>
+                        @endif
                     </div>
                     <button type="button" wire:click="closeCheckout" class="text-gray-400 hover:text-gray-700" aria-label="Close"><i class="fa-solid fa-xmark text-xl"></i></button>
                 </div>
 
                 <form wire:submit="{{ $paymentMethod === \App\Enums\PaymentMethod::PayAtVenue->value ? 'beginPayAtVenueConfirmation' : 'placeBooking' }}" class="space-y-6 px-6 py-5">
+                    @if($checkoutMode === 'order')
+                        <div class="rounded-2xl bg-gray-50 p-4 text-sm">
+                            <p class="font-semibold text-gray-900">Activities in this order</p>
+                            <ul class="mt-2 space-y-2 text-gray-600">
+                                @foreach($cartItems as $item)
+                                    <li class="flex items-start justify-between gap-3"><span>{{ $item['service']->name }} · {{ $item['option']->name }}<span class="block text-xs">{{ $item['start']->format('D d M, h:i A') }} – {{ $item['end']->format('h:i A') }}</span></span><strong class="shrink-0 text-gray-900">{{ lkr($item['quote']['total']) }}</strong></li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                     {{-- Details --}}
                     <div>
                         <h3 class="font-semibold text-gray-900">Your details</h3>
@@ -236,7 +281,7 @@
                     {{-- Bank transfer extras --}}
                     @if($paymentMethod === \App\Enums\PaymentMethod::BankTransfer->value)
                         <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                            <p class="font-semibold"><i class="fa-solid fa-building-columns mr-1"></i>Transfer {{ lkr($quote['total']) }} to:</p>
+                            <p class="font-semibold"><i class="fa-solid fa-building-columns mr-1"></i>Transfer {{ lkr($checkoutQuote['total']) }} to:</p>
                             @if($service->venue->hasBankDetails())
                                 <p class="mt-1">{{ $service->venue->bank_name }} — {{ $service->venue->bank_branch }}<br>{{ $service->venue->bank_account_name }}<br><span class="font-mono text-base">A/C {{ $service->venue->bank_account_number }}</span></p>
                             @else
@@ -273,7 +318,7 @@
                     <div class="flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs text-gray-400">By booking you agree to the venue's cancellation rules.</p>
                         <button type="submit" wire:loading.attr="disabled" wire:target="placeBooking,proof" class="btn-brand py-3.5 text-base" @disabled(! $paymentMethod)>
-                            <span wire:loading.remove wire:target="placeBooking,beginPayAtVenueConfirmation">{{ $paymentMethod === \App\Enums\PaymentMethod::PayAtVenue->value ? 'Review Pay at Venue terms' : ($paymentMethod ? 'Place booking · '.lkr($quote['total']) : 'Select a payment method') }}</span>
+                            <span wire:loading.remove wire:target="placeBooking,beginPayAtVenueConfirmation">{{ $paymentMethod === \App\Enums\PaymentMethod::PayAtVenue->value ? 'Review Pay at Venue terms' : ($paymentMethod ? 'Place '.($checkoutMode === 'order' ? 'venue order' : 'booking').' · '.lkr($checkoutQuote['total']) : 'Select a payment method') }}</span>
                             <span wire:loading wire:target="placeBooking,beginPayAtVenueConfirmation"><i class="fa-solid fa-spinner fa-spin"></i> Please wait…</span>
                         </button>
                     </div>
@@ -283,7 +328,7 @@
     @endif
 
     {{-- Pay at Venue has a deliberately separate final confirmation. --}}
-    @if($showPayAtVenueWarning && $quote)
+    @if($showPayAtVenueWarning && $checkoutQuote)
         <div class="fixed inset-0 z-[100001] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4"
              wire:click.self="closePayAtVenueWarning"
              x-data="{ init() { document.body.classList.add('overflow-hidden') }, destroy() { document.body.classList.remove('overflow-hidden') } }"
@@ -299,7 +344,7 @@
 
                 <form wire:submit="confirmPayAtVenueBooking" class="space-y-5 px-6 py-5">
                     <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                        <p class="font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Your {{ $startsAt->format('D d M, h:i A') }} slot may be replaced by a paid booking.</p>
+                        <p class="font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Your {{ $checkoutMode === 'order' ? 'venue order' : $startsAt->format('D d M, h:i A').' slot' }} may be replaced by a paid booking.</p>
                         <p class="mt-1 text-xs">Pay at Venue is not a paid confirmation. Until the venue locks it, a bank transfer or online payment for the same time has priority.</p>
                     </div>
 
@@ -336,7 +381,7 @@
                     <div class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <button type="button" wire:click="closePayAtVenueWarning" class="btn-ghost justify-center">Go back</button>
                         <button type="submit" wire:loading.attr="disabled" wire:target="confirmPayAtVenueBooking,nicFront,nicBack" class="btn-brand py-3.5 text-base">
-                            <span wire:loading.remove wire:target="confirmPayAtVenueBooking">Confirm Pay at Venue booking · {{ lkr($quote['total']) }}</span>
+                            <span wire:loading.remove wire:target="confirmPayAtVenueBooking">Confirm Pay at Venue {{ $checkoutMode === 'order' ? 'order' : 'booking' }} · {{ lkr($checkoutQuote['total']) }}</span>
                             <span wire:loading wire:target="confirmPayAtVenueBooking"><i class="fa-solid fa-spinner fa-spin"></i> Placing booking…</span>
                         </button>
                     </div>
